@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* Layout idea: a motion-capture stage. Stickman stage is the hero, source video sits beside it (below on phones), controls in one strip. Single dark theme by choice. */
+  /* Layout idea: a motion-capture stage. The avatar stage is the hero, the source video sits beside it (below on phones), avatar picker and controls underneath. Single dark theme by choice. */
   --stage:#1b2231;
   --panel:#252e41;
   --edge:#36415a;
@@ -25,7 +25,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--stage);color:var(--chalk);font-family:var(--body);font-size:16px;line-height:1.45}
-.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px}
 header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
 h1{font-family:var(--display);font-weight:800;font-size:clamp(1.5rem,5vw,2.1rem);line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.01em}
 h1 span{color:var(--marker)}
@@ -34,12 +34,14 @@ h2{font-family:var(--display);font-weight:600;font-size:.82rem;letter-spacing:.0
 .pill i{width:9px;height:9px;border-radius:50%;background:var(--warn);flex:none}
 .pill[data-state="ok"] i{background:var(--ok)}
 .pill[data-state="bad"] i{background:var(--bad)}
+.pill[data-state="rec"] i{background:var(--bad);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.2}}
 .grid{display:grid;grid-template-columns:1fr;gap:16px}
 @media(min-width:820px){.grid{grid-template-columns:1.15fr 1fr;align-items:start}}
 .card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .cardhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .cardhead small{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
-#stage{width:100%;display:block;border-radius:10px;background:var(--stage);aspect-ratio:3/4;max-height:72vh}
+#stage{width:100%;display:block;border-radius:10px;background:var(--stage);aspect-ratio:3/4;max-height:72vh;object-fit:contain}
 .videobox{position:relative;border-radius:10px;overflow:hidden;background:var(--stage)}
 .videobox video{display:block;width:100%;height:auto;max-height:72vh}
 .videobox canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -47,17 +49,25 @@ h2{font-family:var(--display);font-weight:600;font-size:.82rem;letter-spacing:.0
 .drop.over{border-color:var(--marker);color:var(--chalk)}
 .drop p{margin:0;max-width:34ch}
 [hidden]{display:none!important}
-.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
-.btn{font:600 .95rem var(--body);color:var(--stage);background:var(--marker);border:0;border-radius:10px;padding:11px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.avatars{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.av{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 8px 6px;border-radius:12px;background:var(--stage);border:2px solid transparent;color:var(--chalk);font:600 .85rem var(--body);cursor:pointer}
+.av canvas{width:64px;height:84px;display:block}
+.av[aria-pressed="true"]{border-color:var(--marker)}
+.av:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.btn{font:600 .95rem var(--body);color:var(--stage);background:var(--marker);border:0;border-radius:10px;padding:11px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
 .btn.ghost{background:transparent;color:var(--chalk);border:1px solid var(--edge)}
+.btn.rec{background:var(--bad)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn:focus-visible,select:focus-visible,input:focus-visible+span,label.btn:focus-within{outline:2px solid var(--chalk);outline-offset:2px}
-.check{display:inline-flex;align-items:center;gap:8px;font-size:.92rem;cursor:pointer}
+.btn:focus-visible,select:focus-visible,label.btn:focus-within,.check:focus-within{outline:2px solid var(--chalk);outline-offset:2px}
+.check{display:inline-flex;align-items:center;gap:8px;font-size:.92rem;cursor:pointer;border-radius:6px}
 .check input{width:18px;height:18px;accent-color:var(--marker);margin:0}
 .field{display:inline-flex;align-items:center;gap:8px;font-size:.92rem}
 select{font:500 .92rem var(--body);color:var(--chalk);background:var(--stage);border:1px solid var(--edge);border-radius:8px;padding:8px 10px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-.note{color:var(--muted);font-size:.86rem;margin:0;max-width:65ch}
+.note{color:var(--muted);font-size:.86rem;margin:0;max-width:70ch}
+hr{border:0;border-top:1px solid var(--edge);margin:2px 0;width:100%}
+@media (prefers-reduced-motion:reduce){.pill[data-state="rec"] i{animation:none}}
 </style>
 </head>
 <body>
@@ -68,15 +78,15 @@ select{font:500 .92rem var(--body);color:var(--chalk);background:var(--stage);bo
   </header>
 
   <div class="grid">
-    <section class="card" aria-label="Stickman">
-      <div class="cardhead"><h2>Stickman</h2><small id="fps">Rest pose</small></div>
+    <section class="card" aria-label="Avatar stage">
+      <div class="cardhead"><h2>Avatar</h2><small id="perf">Idle animation</small></div>
       <canvas id="stage"></canvas>
     </section>
 
     <section class="card" aria-label="Source video">
       <div class="cardhead"><h2>Your video</h2><small id="vinfo"></small></div>
       <div class="drop" id="drop">
-        <p>Pick a video of one person moving. Full body in frame works best.</p>
+        <p>Pick a video of one person moving. Full body in frame works best, but upper body works too.</p>
         <label class="btn" for="file">Choose video<input class="sr" type="file" id="file" accept="video/*"></label>
       </div>
       <div class="videobox" id="videobox" hidden>
@@ -86,236 +96,657 @@ select{font:500 .92rem var(--body);color:var(--chalk);background:var(--stage);bo
     </section>
   </div>
 
+  <section class="card" aria-label="Choose avatar">
+    <div class="cardhead"><h2>Choose avatar</h2><small id="faceinfo"></small></div>
+    <div class="avatars" id="avatars"></div>
+    <div class="row">
+      <label class="btn ghost" for="faceFile">Add face photo<input class="sr" type="file" id="faceFile" accept="image/*"></label>
+      <label class="check" id="faceWrap" hidden><input type="checkbox" id="useFace" checked><span>Use my photo as the head</span></label>
+    </div>
+  </section>
+
   <section class="card" aria-label="Controls">
-    <div class="controls">
+    <div class="row">
       <button class="btn" id="play" type="button" disabled>Play</button>
+      <button class="btn ghost" id="record" type="button" disabled>Record avatar video</button>
+      <a class="btn" id="save" hidden>Save video</a>
       <label class="btn ghost" for="file" id="change" hidden>Change video</label>
-      <label class="check"><input type="checkbox" id="center" checked><span>Keep stickman centred</span></label>
-      <label class="check"><input type="checkbox" id="joints" checked><span>Show joints</span></label>
+    </div>
+    <hr>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="center" checked><span>Keep avatar centred</span></label>
+      <label class="check"><input type="checkbox" id="fill" checked><span>Fill in hidden limbs</span></label>
+      <label class="check"><input type="checkbox" id="mirror"><span>Mirror</span></label>
       <label class="check"><input type="checkbox" id="onvideo" checked><span>Draw tracking on video</span></label>
-      <label class="field" for="detail">Detail
+    </div>
+    <div class="row">
+      <label class="field" for="bg">Background
+        <select id="bg">
+          <option value="studio" selected>Studio</option>
+          <option value="plain">Plain</option>
+          <option value="light">Light</option>
+          <option value="green">Green screen</option>
+        </select>
+      </label>
+      <label class="field" for="smooth">Smoothing
+        <select id="smooth">
+          <option value="0">Off</option>
+          <option value="1" selected>Light</option>
+          <option value="2">Strong</option>
+        </select>
+      </label>
+      <label class="field" for="detail">Tracking
         <select id="detail">
-          <option value="0">Fast</option>
-          <option value="1" selected>Balanced</option>
-          <option value="2">Precise</option>
+          <option value="lite" selected>Fast</option>
+          <option value="full">Balanced</option>
+          <option value="heavy">Precise</option>
         </select>
       </label>
     </div>
-    <p class="note">The video stays on your device. Tracking runs in this page and follows one person at a time, using 33 body points.</p>
+    <p class="note">The video stays on your device. Tracking runs in this page on your graphics chip when it can, and follows one person using 33 body points. Recording plays the video from the start and saves the avatar as a video file.</p>
   </section>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
-<script>
-(function(){
+<script type="module">
 "use strict";
-var MP_BASE="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/";
-var $=function(id){return document.getElementById(id)};
-var css=getComputedStyle(document.documentElement);
-var C={chalk:css.getPropertyValue("--chalk").trim(),marker:css.getPropertyValue("--marker").trim(),
-       stage:css.getPropertyValue("--stage").trim(),edge:css.getPropertyValue("--edge").trim(),muted:css.getPropertyValue("--muted").trim()};
+const TV = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL_ROOT = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/";
+const MODELS = {
+  lite:  MODEL_ROOT + "pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+  full:  MODEL_ROOT + "pose_landmarker_full/float16/1/pose_landmarker_full.task",
+  heavy: MODEL_ROOT + "pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
+};
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+const css = getComputedStyle(document.documentElement);
+const tok = n => css.getPropertyValue(n).trim();
+const C = { chalk: tok("--chalk"), marker: tok("--marker"), stage: tok("--stage"), edge: tok("--edge"), panel: tok("--panel") };
+const BGS = {
+  studio: { fill: C.stage, dots: C.edge, ink: C.chalk },
+  plain:  { fill: "#11161f", dots: null, ink: C.chalk },
+  light:  { fill: "#eef0f4", dots: "#d5dae4", ink: "#1b2231" },
+  green:  { fill: "#00b140", dots: null, ink: "#ffffff" }
+};
 
-var video=$("video"),stage=$("stage"),overlay=$("overlay");
-var sctx=stage.getContext("2d"),octx=overlay.getContext("2d");
-var optCenter=$("center"),optJoints=$("joints"),optOnVideo=$("onvideo");
+// MediaPipe Pose landmark indices
+const NOSE=0, LEAR=7, REAR=8, LSH=11, RSH=12, LEL=13, REL=14, LWR=15, RWR=16, LIX=19, RIX=20,
+      LHP=23, RHP=24, LKN=25, RKN=26, LAN=27, RAN=28, LFT=31, RFT=32;
+const ARMS = { L: [LSH, LEL, LWR, LIX], R: [RSH, REL, RWR, RIX] };
+const LEGS = { L: [LHP, LKN, LAN, LFT], R: [RHP, RKN, RAN, RFT] };
+const ARM_LEN = [0.62, 0.58, 0.17], LEG_LEN = [0.92, 0.9, 0.26];
+const SKEL = [[LSH,RSH],[LSH,LHP],[RSH,RHP],[LHP,RHP],[LSH,LEL],[LEL,LWR],[RSH,REL],[REL,RWR],[LHP,LKN],[LKN,LAN],[LAN,LFT],[RHP,RKN],[RKN,RAN],[RAN,RFT]];
 
-// Landmark indices (MediaPipe Pose, 33 points)
-var NOSE=0,LEAR=7,REAR=8,LSH=11,RSH=12,LEL=13,REL=14,LWR=15,RWR=16,LIX=19,RIX=20,LHP=23,RHP=24,LKN=25,RKN=26,LAN=27,RAN=28,LFT=31,RFT=32;
-var LIMBS=[[LSH,LEL],[LEL,LWR],[LWR,LIX],[RSH,REL],[REL,RWR],[RWR,RIX],[LHP,LKN],[LKN,LAN],[LAN,LFT],[RHP,RKN],[RKN,RAN],[RAN,RFT]];
-var JOINTS=[LSH,RSH,LEL,REL,LWR,RWR,LHP,RHP,LKN,RKN,LAN,RAN];
-
-// Rest pose shown before a video is loaded (a small wave)
-function restPose(){
-  var p=[];for(var i=0;i<33;i++)p.push({x:.5,y:.5,visibility:0});
-  function s(i,x,y){p[i]={x:x,y:y,visibility:1}}
-  s(NOSE,.5,.17);s(LEAR,.535,.165);s(REAR,.465,.165);
-  s(LSH,.60,.30);s(RSH,.40,.30);
-  s(LEL,.70,.25);s(LWR,.75,.12);s(LIX,.76,.09);
-  s(REL,.34,.44);s(RWR,.32,.57);s(RIX,.32,.60);
-  s(LHP,.56,.56);s(RHP,.44,.56);
-  s(LKN,.57,.74);s(RKN,.43,.74);
-  s(LAN,.57,.91);s(RAN,.43,.91);
-  s(LFT,.61,.935);s(RFT,.39,.935);
+/* ---------------- idle pose (before a video is tracked) ---------------- */
+function idlePose(t) {
+  const p = []; for (let i = 0; i < 33; i++) p.push({ x: .5, y: .5, z: 0, visibility: 0 });
+  const bob = Math.sin(t * 2.2) * .006;
+  const s = (i, x, y, z = 0) => { p[i] = { x, y: y + bob, z, visibility: 1 }; };
+  s(NOSE, .5, .165, -.2); s(LEAR, .535, .16); s(REAR, .465, .16);
+  s(LSH, .60, .30, -.05); s(RSH, .40, .30, .05);
+  const el = { x: .70, y: .25 }, a = -Math.PI / 2 + .45 * Math.sin(t * 4.5);
+  s(LEL, el.x, el.y, -.1); s(LWR, el.x + Math.cos(a) * .13, el.y + Math.sin(a) * .1, -.12);
+  s(LIX, el.x + Math.cos(a) * .16, el.y + Math.sin(a) * .125, -.12);
+  s(REL, .345, .44, .05); s(RWR, .33, .57, .05); s(RIX, .33, .605, .05);
+  s(LHP, .56, .56, -.02); s(RHP, .44, .56, .02);
+  s(LKN, .575, .74); s(RKN, .425, .74); s(LAN, .575, .91); s(RAN, .425, .91);
+  s(LFT, .625, .935); s(RFT, .375, .935);
   return p;
 }
 
-var landmarks=restPose(),isRest=true,lost=false;
-var aspect=3/4;           // source frame width / height
-var smooth=null;          // smoothed centre + scale for centred mode
-
-function fit(canvas){
-  var r=canvas.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);
-  var w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));
-  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
-}
-function vis(p){return p&&(p.visibility===undefined?1:p.visibility)}
-function mid(a,b){return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,visibility:Math.min(vis(a),vis(b))}}
-
-// Map normalized landmarks to canvas pixels
-function project(lm,W,H,centred){
-  // frame box contained in the canvas
-  var fw=W,fh=W/aspect; if(fh>H){fh=H;fw=H*aspect}
-  var ox=(W-fw)/2,oy=(H-fh)/2;
-  var pts=lm.map(function(p){return {x:ox+p.x*fw,y:oy+p.y*fh,visibility:vis(p)}});
-  var hip=mid(pts[LHP],pts[RHP]),sh=mid(pts[LSH],pts[RSH]);
-  var torso=Math.hypot(hip.x-sh.x,hip.y-sh.y)||fh*.25;
-  if(centred){
-    var target=H*.24,k=target/torso;
-    if(!smooth)smooth={x:hip.x,y:hip.y,k:k};
-    else{smooth.x+=(hip.x-smooth.x)*.25;smooth.y+=(hip.y-smooth.y)*.25;smooth.k+=(k-smooth.k)*.12}
-    var cx=W/2,cy=H*.53,sx=smooth.x,sy=smooth.y,sk=smooth.k;
-    pts=pts.map(function(p){return {x:cx+(p.x-sx)*sk,y:cy+(p.y-sy)*sk,visibility:p.visibility}});
-    torso=torso*sk;
+/* ---------------- One Euro filter (low lag, low jitter) ---------------- */
+const alpha = (dt, cut) => 1 / (1 + 1 / (TAU * cut * dt));
+class OneEuro {
+  constructor(minCut, beta) { this.minCut = minCut; this.beta = beta; this.x = null; }
+  f(x, t) {
+    if (this.x === null) { this.x = x; this.dx = 0; this.t = t; return x; }
+    const dt = Math.max((t - this.t) / 1000, 1e-3); this.t = t;
+    const dx = (x - this.x) / dt;
+    this.dx += alpha(dt, 1) * (dx - this.dx);
+    this.x += alpha(dt, this.minCut + this.beta * Math.abs(this.dx)) * (x - this.x);
+    return this.x;
   }
-  return {pts:pts,torso:torso};
+}
+const SMOOTH = [null, { minCut: 2.2, beta: 6 }, { minCut: .8, beta: 3 }];
+let filters = null;
+function resetFilters() { filters = null; centre = null; }
+function smoothPose(lm, t) {
+  const cfg = SMOOTH[+$("smooth").value];
+  if (!cfg) return lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 1 }));
+  if (!filters) filters = lm.map(() => [0, 1, 2].map(() => new OneEuro(cfg.minCut, cfg.beta)));
+  return lm.map((p, i) => ({ x: filters[i][0].f(p.x, t), y: filters[i][1].f(p.y, t), z: filters[i][2].f(p.z, t), visibility: p.visibility ?? 1 }));
 }
 
-function drawFloor(ctx,W,H){
-  ctx.save();ctx.fillStyle=C.edge;
-  var step=Math.max(22,Math.round(W/14));
-  for(var y=step/2;y<H;y+=step)for(var x=step/2;x<W;x+=step){ctx.beginPath();ctx.arc(x,y,1.2,0,6.283);ctx.fill()}
-  ctx.restore();
+/* ---------------- geometry ---------------- */
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const midp = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: ((a.z || 0) + (b.z || 0)) / 2, v: Math.min(a.v, b.v) });
+const ok = p => p && p.v >= .3;
+let centre = null;
+
+function buildG(lm, W, H, aspect, opts) {
+  let fw = W, fh = W / aspect; if (fh > H) { fh = H; fw = H * aspect; }
+  const ox = (W - fw) / 2, oy = (H - fh) / 2;
+  let P = lm.map(p => ({ x: ox + (opts.mirror ? 1 - p.x : p.x) * fw, y: oy + p.y * fh, z: (p.z || 0) * fw, v: p.visibility ?? 1 }));
+
+  // hips hidden (upper-body video): place them under the shoulders
+  let hipsGuessed = !(ok(P[LHP]) || ok(P[RHP]));
+  if (ok(P[LSH]) && ok(P[RSH]) && opts.fill && !(ok(P[LHP]) || ok(P[RHP]))) {
+    const sw = Math.max(dist(P[LSH], P[RSH]), fh * .08), drop = sw * 1.35;
+    const plaus = (h, s) => { const d = dist(h, s) / drop; return d > .6 && d < 1.6; };
+    if (!plaus(P[LHP], P[LSH]) || !plaus(P[RHP], P[RSH])) {
+      P[LHP] = { x: P[LSH].x + (P[RSH].x - P[LSH].x) * .12, y: P[LSH].y + drop, z: P[LSH].z, v: .6 };
+      P[RHP] = { x: P[RSH].x + (P[LSH].x - P[RSH].x) * .12, y: P[RSH].y + drop, z: P[RSH].z, v: .6 };
+    } else { P[LHP].v = P[RHP].v = .6; hipsGuessed = false; }
+  }
+  let sh = midp(P[LSH], P[RSH]), hp = midp(P[LHP], P[RHP]);
+  let u = dist(sh, hp); if (!(u > fh * .03)) u = fh * .22;
+
+  if (opts.centred) {
+    const k = H * .215 / u;
+    if (!centre) centre = { x: hp.x, y: hp.y, k };
+    else { centre.x += (hp.x - centre.x) * .3; centre.y += (hp.y - centre.y) * .3; centre.k += (k - centre.k) * .15; }
+    const cx = W / 2, cy = H * .53, c = centre;
+    P = P.map(p => ({ x: cx + (p.x - c.x) * c.k, y: cy + (p.y - c.y) * c.k, z: p.z * c.k, v: p.v }));
+    sh = midp(P[LSH], P[RSH]); hp = midp(P[LHP], P[RHP]); u *= c.k;
+  }
+
+  let up = { x: sh.x - hp.x, y: sh.y - hp.y }; const ul = Math.hypot(up.x, up.y) || 1;
+  up = { x: up.x / ul, y: up.y / ul }; const down = { x: -up.x, y: -up.y };
+
+  if (opts.fill) {
+    fillChain(P, ARMS.L, ARM_LEN, u, down, true, null); fillChain(P, ARMS.R, ARM_LEN, u, down, true, null);
+    fillChain(P, LEGS.L, LEG_LEN, u, down, !hipsGuessed, hp); fillChain(P, LEGS.R, LEG_LEN, u, down, !hipsGuessed, hp);
+  }
+
+  // head
+  let hc;
+  if (ok(P[LEAR]) && ok(P[REAR])) hc = midp(P[LEAR], P[REAR]);
+  else if (ok(P[NOSE])) hc = P[NOSE];
+  else hc = { x: sh.x + up.x * .62 * u, y: sh.y + up.y * .62 * u };
+  hc = { x: hc.x + up.x * .06 * u, y: hc.y + up.y * .06 * u };
+  const neck = { x: hc.x - sh.x, y: hc.y - sh.y };
+  const tilt = Math.atan2(neck.x, -neck.y);
+  let look = 0;
+  if (ok(P[NOSE]) && (ok(P[LEAR]) || ok(P[REAR]))) {
+    const em = ok(P[LEAR]) && ok(P[REAR]) ? midp(P[LEAR], P[REAR]) : (ok(P[LEAR]) ? P[LEAR] : P[REAR]);
+    const dx = (P[NOSE].x - em.x) * Math.cos(tilt) + (P[NOSE].y - em.y) * Math.sin(tilt);
+    look = Math.max(-1, Math.min(1, dx / (.28 * u)));
+  }
+  const sx = P[LSH].x - P[RSH].x;
+  const front = Math.abs(sx) < .18 * u ? true : (opts.mirror ? sx < 0 : sx > 0);
+  const zs = ids => ids.reduce((a, i) => a + P[i].z, 0);
+  const near = zs([LSH, LEL, LWR, LHP, LKN, LAN]) <= zs([RSH, REL, RWR, RHP, RKN, RAN]) ? "L" : "R";
+  const perp = { x: -up.y, y: up.x };
+  return { P, u, sh, hp, up, down, perp, head: hc, tilt, look, front, near, W, H, fill: opts.fill };
 }
 
-function drawStickman(ctx,pts,torso,opts){
-  var lw=opts.thin?Math.max(2,torso*.035):Math.min(Math.max(torso*.085,3),18);
-  ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=lw;ctx.strokeStyle=opts.color;
-  function seg(a,b){
-    var v=Math.min(a.visibility,b.visibility);
-    if(v<.25)return;
-    ctx.globalAlpha=opts.alpha*(v<.55?.4:1);
-    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+function fillChain(P, ids, lens, u, down, trustGuess, hipMid) {
+  if (!ok(P[ids[0]])) return;
+  for (let i = 1; i < ids.length; i++) {
+    const prev = P[ids[i - 1]], p = P[ids[i]];
+    if (ok(p)) continue;
+    const L = lens[i - 1] * u, d = dist(prev, p);
+    // keep the model's own guess when it is anatomically plausible (legs must point roughly downward)
+    const downish = !hipMid || ((p.x - prev.x) * down.x + (p.y - prev.y) * down.y) / (d || 1) > .3;
+    if (trustGuess && d > L * .55 && d < L * 1.6 && downish) { p.v = .6; continue; }
+    let dir = down;
+    if (hipMid && i === 1) { const ox = prev.x - hipMid.x, oy = prev.y - hipMid.y, ol = Math.hypot(ox, oy) || 1; dir = { x: down.x + ox / ol * .12, y: down.y + oy / ol * .12 }; }
+    if (i >= 2) { const pp = P[ids[i - 2]], dx = prev.x - pp.x, dy = prev.y - pp.y, dd = Math.hypot(dx, dy); if (dd > 1) dir = { x: dx / dd, y: dy / dd }; }
+    if (i === 3) dir = { x: dir.x * .3 + (prev.x >= P[ids[0]].x ? .9 : -.9) * .7, y: dir.y * .3 + .2 };
+    const n = Math.hypot(dir.x, dir.y) || 1;
+    P[ids[i]] = { x: prev.x + dir.x / n * L, y: prev.y + dir.y / n * L, z: prev.z, v: .6 };
   }
-  var sh=mid(pts[LSH],pts[RSH]),hip=mid(pts[LHP],pts[RHP]);
-  var head=mid(pts[LEAR],pts[REAR]);
-  if(head.visibility<.25)head=pts[NOSE];
-  var r=Math.max(torso*.27,lw*1.5);
-  // spine, shoulders, hips
-  seg(sh,hip);seg(pts[LSH],pts[RSH]);seg(pts[LHP],pts[RHP]);
-  // limbs
-  LIMBS.forEach(function(l){seg(pts[l[0]],pts[l[1]])});
-  // neck up to the edge of the head
-  if(head.visibility>=.25&&sh.visibility>=.25){
-    var dx=head.x-sh.x,dy=head.y-sh.y,d=Math.hypot(dx,dy)||1;
-    if(d>r)seg(sh,{x:head.x-dx/d*r,y:head.y-dy/d*r,visibility:Math.min(head.visibility,sh.visibility)});
-    ctx.globalAlpha=opts.alpha;
-    ctx.beginPath();ctx.arc(head.x,head.y,r,0,6.283);
-    if(opts.fillHead){ctx.fillStyle=opts.fillHead;ctx.fill()}
-    ctx.stroke();
-  }
-  if(opts.joints){
-    ctx.fillStyle=opts.jointColor;
-    JOINTS.forEach(function(i){var p=pts[i];if(p.visibility<.25)return;
-      ctx.globalAlpha=opts.alpha*(p.visibility<.55?.4:1);
-      ctx.beginPath();ctx.arc(p.x,p.y,lw*.62,0,6.283);ctx.fill()});
-  }
-  ctx.globalAlpha=1;
 }
 
-function render(){
-  fit(stage);
-  var W=stage.width,H=stage.height;
-  sctx.clearRect(0,0,W,H);
-  drawFloor(sctx,W,H);
-  if(landmarks){
-    var pr=project(landmarks,W,H,optCenter.checked&&!isRest);
-    drawStickman(sctx,pr.pts,pr.torso,{color:C.chalk,alpha:lost?.35:1,joints:optJoints.checked,jointColor:C.marker,fillHead:C.stage});
+// keeps the torso from collapsing to a line when seen from the side
+function widen(a, b, m, perp, minHalf) {
+  if (dist(a, b) / 2 >= minHalf) return [a, b];
+  const s = ((a.x - m.x) * perp.x + (a.y - m.y) * perp.y) >= 0 ? 1 : -1;
+  return [{ x: m.x + perp.x * minHalf * s, y: m.y + perp.y * minHalf * s, v: 1 }, { x: m.x - perp.x * minHalf * s, y: m.y - perp.y * minHalf * s, v: 1 }];
+}
+function torsoQuad(G, minSh, minHp) {
+  const [ls, rs] = widen(G.P[LSH], G.P[RSH], G.sh, G.perp, minSh * G.u);
+  const [lh, rh] = widen(G.P[LHP], G.P[RHP], G.hp, G.perp, minHp * G.u);
+  return [ls, rs, rh, lh];
+}
+
+/* ---------------- drawing helpers ---------------- */
+function line(ctx, a, b, w, col) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+function oline(ctx, a, b, w, col, out) { line(ctx, a, b, w + out, "#141925"); line(ctx, a, b, w, col); }
+function dot(ctx, p, r, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill(); }
+function path(ctx, pts, close) { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); if (close) ctx.closePath(); }
+function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function segs(G, pts, fn) { for (let i = 0; i < pts.length - 1; i++) if (ok(pts[i]) && ok(pts[i + 1])) fn(pts[i], pts[i + 1], i); }
+function lerp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
+function headSpace(ctx, G, fn) { ctx.save(); ctx.translate(G.head.x, G.head.y); ctx.rotate(G.tilt); fn(); ctx.restore(); }
+
+/* ---------------- avatars ---------------- */
+const AVATARS = {
+  stickman: {
+    name: "Stickman", headR: .27,
+    arm(ctx, G, pts) { const w = Math.max(G.u * .085, 2); segs(G, pts.slice(0, 3), (a, b) => line(ctx, a, b, w, G.ink)); },
+    leg(ctx, G, pts) { const w = Math.max(G.u * .085, 2); segs(G, pts, (a, b) => line(ctx, a, b, w, G.ink)); },
+    torso(ctx, G) {
+      const w = Math.max(G.u * .085, 2), P = G.P;
+      line(ctx, G.sh, G.hp, w, G.ink); line(ctx, P[LSH], P[RSH], w, G.ink); line(ctx, P[LHP], P[RHP], w, G.ink);
+      const r = G.u * this.headR, d = Math.hypot(G.head.x - G.sh.x, G.head.y - G.sh.y);
+      if (d > r) line(ctx, G.sh, lerp(G.sh, G.head, 1 - r / d), w, G.ink);
+    },
+    head(ctx, G) { const w = Math.max(G.u * .085, 2); ctx.beginPath(); ctx.arc(G.head.x, G.head.y, G.u * this.headR, 0, TAU); ctx.fillStyle = G.bgFill; ctx.fill(); ctx.strokeStyle = G.ink; ctx.lineWidth = w; ctx.stroke(); },
+    end(ctx, G) { const r = Math.max(G.u * .055, 1.6); [LSH, RSH, LEL, REL, LWR, RWR, LHP, RHP, LKN, RKN, LAN, RAN].forEach(i => ok(G.P[i]) && dot(ctx, G.P[i], r, C.marker)); },
+    ring: C.chalk
+  },
+
+  pip: {
+    name: "Pip", headR: .34,
+    col: { shirt: ["#ff8a3d", "#d8692a"], pants: ["#4166b8", "#2f4c8c"], skin: ["#f4c7a1", "#dba985"], hair: "#3a2418", shoe: "#1d222e" },
+    arm(ctx, G, [s, e, w, h], near) {
+      const u = G.u, o = u * .07, k = near ? 0 : 1;
+      if (ok(s) && ok(e)) oline(ctx, s, e, u * .27, this.col.shirt[k], o);
+      if (ok(e) && ok(w)) oline(ctx, e, w, u * .2, this.col.skin[k], o);
+      if (ok(w)) { const hand = ok(h) ? lerp(w, h, .5) : w; dot(ctx, hand, u * .13 + o / 2, "#141925"); dot(ctx, hand, u * .13, this.col.skin[k]); }
+    },
+    leg(ctx, G, [hp, kn, an, ft], near) {
+      const u = G.u, o = u * .07, k = near ? 0 : 1;
+      if (ok(hp) && ok(kn)) oline(ctx, hp, kn, u * .34, this.col.pants[k], o);
+      if (ok(kn) && ok(an)) oline(ctx, kn, an, u * .29, this.col.pants[k], o);
+      if (ok(an) && ok(ft)) oline(ctx, an, ft, u * .22, this.col.shoe, o);
+    },
+    torso(ctx, G) {
+      const u = G.u, o = u * .07;
+      oline(ctx, G.sh, G.head, u * .17, this.col.skin[1], o);
+      const q = torsoQuad(G, .26, .2);
+      path(ctx, q, true); ctx.lineWidth = u * .3 + o; ctx.strokeStyle = "#141925"; ctx.stroke();
+      ctx.fillStyle = this.col.shirt[0]; ctx.fill(); ctx.lineWidth = u * .3; ctx.strokeStyle = this.col.shirt[0]; ctx.stroke();
+      path(ctx, [lerp(q[0], q[3], .84), lerp(q[1], q[2], .84), q[2], q[3]], true);
+      ctx.fillStyle = this.col.pants[0]; ctx.fill(); ctx.lineWidth = u * .3; ctx.strokeStyle = this.col.pants[0]; ctx.stroke();
+    },
+    head(ctx, G) {
+      const u = G.u, r = u * this.headR, o = u * .07, c = this.col;
+      headSpace(ctx, G, () => {
+        ctx.beginPath(); ctx.arc(0, 0, r + o / 2, 0, TAU); ctx.fillStyle = "#141925"; ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = G.front ? c.skin[0] : c.hair; ctx.fill();
+        if (!G.front) return;
+        const lx = G.look * r * .45;
+        ctx.beginPath(); ctx.arc(0, 0, r, Math.PI * 1.08 + G.look * .3, Math.PI * 1.92 + G.look * .3); ctx.closePath(); ctx.fillStyle = c.hair; ctx.fill();
+        ctx.fillStyle = "#141925";
+        const eye = x => { ctx.beginPath(); ctx.ellipse(x, r * .08, r * .1, r * .13, 0, 0, TAU); ctx.fill(); };
+        if (G.look > -.6) eye(lx + r * .32); if (G.look < .6) eye(lx - r * .32);
+        ctx.beginPath(); ctx.arc(lx, r * .3, r * .26, .2 * Math.PI, .8 * Math.PI); ctx.lineWidth = r * .09; ctx.strokeStyle = "#141925"; ctx.stroke();
+        ctx.fillStyle = "rgba(255,110,110,.35)"; [-1, 1].forEach(sg => { ctx.beginPath(); ctx.arc(lx + sg * r * .55, r * .32, r * .13, 0, TAU); ctx.fill(); });
+      });
+    },
+    ring: "#ff8a3d"
+  },
+
+  robot: {
+    name: "Robo", headR: .32,
+    col: { metal: ["#c3ccdc", "#8e99b0"], dark: "#3c465e", glow: "#5ce1e6" },
+    arm(ctx, G, [s, e, w, h], near) {
+      const u = G.u, m = this.col.metal[near ? 0 : 1];
+      if (ok(s) && ok(e)) line(ctx, s, e, u * .2, m);
+      if (ok(e) && ok(w)) line(ctx, e, w, u * .17, m);
+      if (ok(s)) dot(ctx, s, u * .13, this.col.dark); if (ok(e)) dot(ctx, e, u * .11, this.col.dark);
+      if (ok(w)) {
+        const tip = ok(h) ? h : { x: w.x + G.down.x * u * .17, y: w.y + G.down.y * u * .17 };
+        const dx = tip.x - w.x, dy = tip.y - w.y;
+        [-.5, .5].forEach(a => { const c = Math.cos(a), s2 = Math.sin(a); line(ctx, w, { x: w.x + dx * c - dy * s2, y: w.y + dx * s2 + dy * c }, u * .06, this.col.dark); });
+        dot(ctx, w, u * .08, this.col.dark);
+      }
+    },
+    leg(ctx, G, [hp, kn, an, ft], near) {
+      const u = G.u, m = this.col.metal[near ? 0 : 1];
+      if (ok(hp) && ok(kn)) line(ctx, hp, kn, u * .25, m);
+      if (ok(kn) && ok(an)) line(ctx, kn, an, u * .21, m);
+      if (ok(kn)) dot(ctx, kn, u * .12, this.col.dark);
+      if (ok(an) && ok(ft)) line(ctx, an, ft, u * .2, this.col.dark);
+    },
+    torso(ctx, G) {
+      const u = G.u, q = torsoQuad(G, .3, .22);
+      line(ctx, G.sh, G.head, u * .13, this.col.dark);
+      path(ctx, q, true); ctx.fillStyle = this.col.metal[0]; ctx.fill();
+      ctx.lineWidth = u * .14; ctx.strokeStyle = this.col.metal[0]; ctx.stroke();
+      ctx.lineWidth = u * .035; ctx.strokeStyle = this.col.dark; ctx.stroke();
+      line(ctx, q[3], q[2], u * .1, this.col.dark);
+      const c = lerp(G.sh, G.hp, .35);
+      ctx.save(); ctx.shadowBlur = u * .25; ctx.shadowColor = this.col.glow; dot(ctx, c, u * .1, this.col.glow); ctx.restore();
+    },
+    head(ctx, G) {
+      const u = G.u, r = u * this.headR, c = this.col;
+      headSpace(ctx, G, () => {
+        ctx.lineWidth = u * .04; ctx.strokeStyle = c.dark;
+        ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(0, -r * 1.5); ctx.stroke();
+        ctx.save(); ctx.shadowBlur = u * .15; ctx.shadowColor = c.glow; ctx.beginPath(); ctx.arc(0, -r * 1.55, u * .06, 0, TAU); ctx.fillStyle = c.glow; ctx.fill(); ctx.restore();
+        rrect(ctx, -r, -r, r * 2, r * 1.85, r * .35); ctx.fillStyle = c.metal[0]; ctx.fill(); ctx.stroke();
+        if (!G.front) { line(ctx, { x: -r * .6, y: 0 }, { x: r * .6, y: 0 }, u * .03, c.dark); return; }
+        const lx = G.look * r * .3;
+        rrect(ctx, lx - r * .72, -r * .45, r * 1.44, r * .55, r * .25); ctx.fillStyle = c.dark; ctx.fill();
+        ctx.save(); ctx.shadowBlur = u * .12; ctx.shadowColor = c.glow; ctx.fillStyle = c.glow;
+        [-1, 1].forEach(sg => { ctx.beginPath(); ctx.arc(lx + sg * r * .32 + G.look * r * .12, -r * .17, r * .13, 0, TAU); ctx.fill(); });
+        ctx.restore();
+        line(ctx, { x: lx - r * .35, y: r * .45 }, { x: lx + r * .35, y: r * .45 }, u * .035, c.dark);
+      });
+    },
+    ring: "#5ce1e6"
+  },
+
+  neon: {
+    name: "Neon", headR: .28,
+    begin(ctx, G) { this.c = `hsl(${(G.t * 50) % 360} 100% 62%)`; ctx.shadowBlur = G.u * .35; ctx.shadowColor = this.c; },
+    glow(ctx, G, pts) { path(ctx, pts); ctx.lineWidth = G.u * .1; ctx.strokeStyle = this.c; ctx.stroke(); ctx.lineWidth = G.u * .03; ctx.strokeStyle = "#ffffff"; ctx.stroke(); },
+    limb(ctx, G, pts) { let run = []; pts.forEach(p => { if (ok(p)) run.push(p); else { if (run.length > 1) this.glow(ctx, G, run); run = []; } }); if (run.length > 1) this.glow(ctx, G, run); },
+    arm(ctx, G, pts) { this.limb(ctx, G, pts.slice(0, 3)); },
+    leg(ctx, G, pts) { this.limb(ctx, G, pts); },
+    torso(ctx, G) {
+      const P = G.P, q = torsoQuad(G, .22, .16);
+      this.glow(ctx, G, [q[0], q[1], q[2], q[3], q[0]]);
+      const r = G.u * this.headR, d = dist(G.sh, G.head); if (d > r) this.glow(ctx, G, [G.sh, lerp(G.sh, G.head, 1 - r / d)]);
+    },
+    head(ctx, G) {
+      const r = G.u * this.headR;
+      ctx.beginPath(); ctx.arc(G.head.x, G.head.y, r, 0, TAU); ctx.lineWidth = G.u * .1; ctx.strokeStyle = this.c; ctx.stroke(); ctx.lineWidth = G.u * .03; ctx.strokeStyle = "#fff"; ctx.stroke();
+    },
+    end(ctx) { ctx.shadowBlur = 0; },
+    get ring() { return this.c || "#ff4fd8"; }
+  },
+
+  bones: {
+    name: "Bones", headR: .27,
+    col: { bone: ["#f1ebdc", "#c9c1ad"], dark: "#1b2231" },
+    bone(ctx, G, a, b, w, col, twin) {
+      if (twin) { const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, ox = -dy / l * w * .6, oy = dx / l * w * .6;
+        line(ctx, { x: a.x + ox, y: a.y + oy }, { x: b.x + ox, y: b.y + oy }, w * .55, col); line(ctx, { x: a.x - ox, y: a.y - oy }, { x: b.x - ox, y: b.y - oy }, w * .55, col); }
+      else line(ctx, a, b, w, col);
+      dot(ctx, a, w * .85, col); dot(ctx, b, w * .85, col);
+    },
+    arm(ctx, G, [s, e, w, h], near) {
+      const u = G.u, c = this.col.bone[near ? 0 : 1];
+      if (ok(s) && ok(e)) this.bone(ctx, G, s, e, u * .075, c);
+      if (ok(e) && ok(w)) this.bone(ctx, G, e, w, u * .075, c, true);
+      if (ok(w)) { const tip = ok(h) ? h : { x: w.x + G.down.x * u * .16, y: w.y + G.down.y * u * .16 };
+        [-.45, 0, .45].forEach(a => { const dx = tip.x - w.x, dy = tip.y - w.y, cs = Math.cos(a), sn = Math.sin(a); line(ctx, w, { x: w.x + dx * cs - dy * sn, y: w.y + dx * sn + dy * cs }, u * .03, c); }); }
+    },
+    leg(ctx, G, [hp, kn, an, ft], near) {
+      const u = G.u, c = this.col.bone[near ? 0 : 1];
+      if (ok(hp) && ok(kn)) this.bone(ctx, G, hp, kn, u * .09, c);
+      if (ok(kn) && ok(an)) this.bone(ctx, G, kn, an, u * .085, c, true);
+      if (ok(an) && ok(ft)) this.bone(ctx, G, an, ft, u * .06, c);
+    },
+    torso(ctx, G) {
+      const u = G.u, c = this.col.bone[0], q = torsoQuad(G, .26, .18);
+      for (let i = 0; i <= 8; i++) dot(ctx, lerp(G.hp, G.head, i / 8 * .82), u * .045, c);
+      line(ctx, G.sh, q[0], u * .045, c); line(ctx, G.sh, q[1], u * .045, c);
+      ctx.strokeStyle = c; ctx.lineWidth = u * .04;
+      for (let i = 0; i < 4; i++) {
+        const f = .14 + i * .12, sp = lerp(G.sh, G.hp, f), half = dist(q[0], q[1]) / 2 * (1 - i * .1);
+        [-1, 1].forEach(sg => {
+          const end = { x: sp.x + G.perp.x * half * sg + G.down.x * u * .1, y: sp.y + G.perp.y * half * sg + G.down.y * u * .1 };
+          const ctl = { x: sp.x + G.perp.x * half * sg * 1.05 - G.down.x * u * .06, y: sp.y + G.perp.y * half * sg * 1.05 - G.down.y * u * .06 };
+          ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.quadraticCurveTo(ctl.x, ctl.y, end.x, end.y); ctx.stroke();
+        });
+      }
+      const top = { x: G.hp.x + G.up.x * u * .14, y: G.hp.y + G.up.y * u * .14 };
+      path(ctx, [q[3], top, q[2], { x: G.hp.x + G.down.x * u * .08, y: G.hp.y + G.down.y * u * .08 }], true);
+      ctx.fillStyle = c; ctx.fill(); ctx.lineWidth = u * .05; ctx.strokeStyle = c; ctx.stroke();
+    },
+    head(ctx, G) {
+      const u = G.u, r = u * this.headR, c = this.col;
+      headSpace(ctx, G, () => {
+        rrect(ctx, -r * .55, r * .45, r * 1.1, r * .55, r * .2); ctx.fillStyle = c.bone[0]; ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+        if (!G.front) return;
+        const lx = G.look * r * .4; ctx.fillStyle = c.dark;
+        if (G.look > -.6) { ctx.beginPath(); ctx.arc(lx + r * .38, r * .02, r * .24, 0, TAU); ctx.fill(); }
+        if (G.look < .6) { ctx.beginPath(); ctx.arc(lx - r * .38, r * .02, r * .24, 0, TAU); ctx.fill(); }
+        path(ctx, [{ x: lx, y: r * .3 }, { x: lx - r * .1, y: r * .5 }, { x: lx + r * .1, y: r * .5 }], true); ctx.fill();
+        ctx.lineWidth = r * .06; ctx.strokeStyle = c.dark;
+        for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(lx + i * r * .14, r * .66); ctx.lineTo(lx + i * r * .14, r * .9); ctx.stroke(); }
+      });
+    },
+    ring: "#f1ebdc"
   }
-  if(!$("videobox").hidden){
-    fit(overlay);
-    var w=overlay.width,h=overlay.height;
-    octx.clearRect(0,0,w,h);
-    if(optOnVideo.checked&&landmarks&&!isRest&&!lost){
-      var pts=landmarks.map(function(p){return {x:p.x*w,y:p.y*h,visibility:vis(p)}});
-      var a=mid(pts[LSH],pts[RSH]),b=mid(pts[LHP],pts[RHP]);
-      drawStickman(octx,pts,Math.hypot(a.x-b.x,a.y-b.y)||h*.2,{thin:true,color:C.marker,alpha:.95,joints:true,jointColor:C.chalk});
+};
+
+/* ---------------- face photo ---------------- */
+let faceImg = null;
+function drawFace(ctx, G, av) {
+  const u = G.u, r = u * .36;
+  const d = dist(G.sh, G.head); if (d > r) line(ctx, G.sh, lerp(G.sh, G.head, 1 - r / d), u * .14, av.ring);
+  headSpace(ctx, G, () => {
+    ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.clip();
+    const s = 2 * r / Math.min(faceImg.width, faceImg.height), w = faceImg.width * s, h = faceImg.height * s;
+    if (G.mirrorFace) ctx.scale(-1, 1);
+    ctx.drawImage(faceImg, -w / 2, -h / 2, w, h); ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.lineWidth = u * .07; ctx.strokeStyle = av.ring; ctx.stroke();
+  });
+}
+
+function drawAvatar(ctx, av, G, useFace) {
+  const far = G.near === "L" ? "R" : "L";
+  const arm = s => [ARMS[s].map(i => G.P[i]), s === G.near];
+  const leg = s => [LEGS[s].map(i => G.P[i]), s === G.near];
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  av.begin && av.begin(ctx, G);
+  av.arm(ctx, G, ...arm(far));
+  av.leg(ctx, G, ...leg(far));
+  av.leg(ctx, G, ...leg(G.near));
+  av.torso(ctx, G);
+  if (useFace && faceImg) drawFace(ctx, G, av); else av.head(ctx, G);
+  av.arm(ctx, G, ...arm(G.near));
+  av.end && av.end(ctx, G);
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+}
+
+function paintBg(ctx, W, H, bg) {
+  ctx.fillStyle = bg.fill; ctx.fillRect(0, 0, W, H);
+  if (!bg.dots) return;
+  ctx.fillStyle = bg.dots; const step = Math.max(22, Math.round(W / 14)), r = Math.max(1.2, W / 600);
+  for (let y = step / 2; y < H; y += step) for (let x = step / 2; x < W; x += step) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
+}
+
+/* ---------------- page state ---------------- */
+const video = $("video"), stage = $("stage"), overlay = $("overlay");
+const sctx = stage.getContext("2d"), octx = overlay.getContext("2d");
+let avatarKey = "pip";
+let pose = null, tracked = false, lost = false, aspect = 3 / 4;
+let landmarker = null, PoseLandmarker = null, vision = null, gpu = false, loadingModel = false;
+let lastTs = 0, lastVT = -1, detCount = 0, detMs = 0, perfT = performance.now();
+let recorder = null, recording = false;
+
+function setStatus(state, text) { $("status").dataset.state = state; $("statusText").textContent = text; }
+
+function fit(canvas) {
+  const r = canvas.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+}
+
+function render(now) {
+  const t = now / 1000;
+  if (!recording) fit(stage);
+  const W = stage.width, H = stage.height, bg = BGS[$("bg").value];
+  paintBg(sctx, W, H, bg);
+  const idle = !tracked;
+  const lm = idle ? idlePose(t) : pose;
+  const G = buildG(lm, W, H, idle ? 3 / 4 : aspect, { centred: !idle && $("center").checked, mirror: !idle && $("mirror").checked, fill: $("fill").checked || idle });
+  G.t = t; G.ink = bg.ink; G.bgFill = bg.fill; G.mirrorFace = false;
+  sctx.globalAlpha = lost ? .45 : 1;
+  drawAvatar(sctx, AVATARS[avatarKey], G, $("useFace").checked);
+
+  if (!$("videobox").hidden) {
+    fit(overlay); const w = overlay.width, h = overlay.height;
+    octx.clearRect(0, 0, w, h);
+    if ($("onvideo").checked && tracked && !lost) {
+      octx.lineCap = "round"; octx.strokeStyle = C.marker; octx.lineWidth = Math.max(2, w / 220);
+      octx.beginPath();
+      SKEL.forEach(([a, b]) => { const p = pose[a], q = pose[b]; if ((p.visibility ?? 1) < .4 || (q.visibility ?? 1) < .4) return; octx.moveTo(p.x * w, p.y * h); octx.lineTo(q.x * w, q.y * h); });
+      octx.stroke();
+      octx.fillStyle = C.chalk;
+      pose.forEach((p, i) => { if (i > 10 && (p.visibility ?? 1) >= .4) { octx.beginPath(); octx.arc(p.x * w, p.y * h, octx.lineWidth * 1.1, 0, TAU); octx.fill(); } });
     }
   }
 }
 
-// ---------- status ----------
-function setStatus(state,text){$("status").dataset.state=state;$("statusText").textContent=text}
-
-// ---------- tracker ----------
-var pose=null,ready=false,busy=false,frames=0,fpsT=performance.now();
-function onResults(res){
-  if(res.poseLandmarks){landmarks=res.poseLandmarks;isRest=false;lost=false;setStatus("ok","Tracking")}
-  else if(!isRest){lost=true;setStatus("wait","No body found in this frame")}
-  frames++;
-  var now=performance.now();
-  if(now-fpsT>1000){$("fps").textContent=Math.round(frames*1000/(now-fpsT))+" frames/s";frames=0;fpsT=now}
-  render();
-}
-function initTracker(){
-  if(typeof Pose==="undefined"){setStatus("bad","Tracker failed to load. Check your connection and reload.");return}
-  try{
-    pose=new Pose({locateFile:function(f){return MP_BASE+f}});
-    pose.setOptions({modelComplexity:+$("detail").value,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
-    pose.onResults(onResults);
-    var slow=setTimeout(function(){if(!ready)setStatus("wait","Still loading the tracker")},12000);
-    pose.initialize().then(function(){
-      clearTimeout(slow);ready=true;
-      setStatus("ok",video.src?"Tracker ready":"Tracker ready. Choose a video.");
-      tick();
-    }).catch(function(){clearTimeout(slow);setStatus("bad","Tracker failed to load. Check your connection and reload.")});
-  }catch(e){setStatus("bad","This browser cannot run the tracker.")}
-}
-function tick(){
-  if(!ready||busy||video.readyState<2||!video.videoWidth)return Promise.resolve();
-  busy=true;
-  return pose.send({image:video}).catch(function(){setStatus("bad","Tracking stopped on this frame.")}).then(function(){busy=false});
-}
-function loop(){
-  tick();
-  if(video.paused||video.ended)return;
-  if(video.requestVideoFrameCallback)video.requestVideoFrameCallback(loop);else requestAnimationFrame(loop);
+/* ---------------- tracking ---------------- */
+async function loadModel(kind) {
+  if (loadingModel) return; loadingModel = true;
+  setStatus("wait", "Loading tracker");
+  try {
+    if (!vision) {
+      const m = await import(TV + "/vision_bundle.mjs");
+      PoseLandmarker = m.PoseLandmarker;
+      vision = await m.FilesetResolver.forVisionTasks(TV + "/wasm");
+    }
+    const opts = delegate => ({ baseOptions: { modelAssetPath: MODELS[kind], delegate }, runningMode: "VIDEO", numPoses: 1,
+      minPoseDetectionConfidence: .5, minPosePresenceConfidence: .5, minTrackingConfidence: .5 });
+    let lm;
+    try { lm = await PoseLandmarker.createFromOptions(vision, opts("GPU")); gpu = true; }
+    catch (e) { lm = await PoseLandmarker.createFromOptions(vision, opts("CPU")); gpu = false; }
+    if (landmarker) landmarker.close();
+    landmarker = lm; resetFilters(); lastVT = -1;
+    setStatus("ok", video.src ? "Tracker ready" : "Tracker ready. Choose a video.");
+    detect();
+  } catch (e) {
+    console.error(e);
+    setStatus("bad", "Tracker failed to load. Check your connection and reload.");
+  } finally { loadingModel = false; }
 }
 
-// ---------- video ----------
-var url=null;
-function loadFile(f){
-  if(!f)return;
-  if(f.type&&f.type.indexOf("video/")!==0){setStatus("bad","That file is not a video.");return}
-  if(url)URL.revokeObjectURL(url);
-  url=URL.createObjectURL(f);
-  smooth=null;landmarks=restPose();isRest=true;lost=false;
-  video.src=url;
-  $("drop").hidden=true;$("videobox").hidden=false;$("change").hidden=false;$("play").disabled=false;
-  $("fps").textContent="";
-  video.play().catch(function(){});
+function detect() {
+  if (!landmarker || video.readyState < 2 || !video.videoWidth) return;
+  if (video.currentTime === lastVT) return;
+  lastVT = video.currentTime;
+  let ts = performance.now(); if (ts <= lastTs) ts = lastTs + 1; lastTs = ts;
+  const t0 = performance.now();
+  let res;
+  try { res = landmarker.detectForVideo(video, ts); } catch (e) { console.error(e); setStatus("bad", "Tracking stopped on this frame."); return; }
+  detMs += performance.now() - t0; detCount++;
+  if (res && res.landmarks && res.landmarks.length) {
+    pose = smoothPose(res.landmarks[0], ts); tracked = true; lost = false;
+    if (!recording) setStatus("ok", "Tracking" + (gpu ? " on GPU" : ""));
+  } else if (tracked) { lost = true; if (!recording) setStatus("wait", "No body found in this frame"); }
 }
-$("file").addEventListener("change",function(e){loadFile(e.target.files[0]);e.target.value=""});
-var drop=$("drop");
-["dragenter","dragover"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();drop.classList.add("over")})});
-["dragleave","drop"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();drop.classList.remove("over")})});
-document.addEventListener("drop",function(e){if(e.dataTransfer&&e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
 
-video.addEventListener("loadedmetadata",function(){
-  aspect=video.videoWidth/video.videoHeight||3/4;
-  stage.style.aspectRatio=video.videoWidth+"/"+video.videoHeight;
-  $("vinfo").textContent=video.videoWidth+"×"+video.videoHeight+", "+video.duration.toFixed(1)+" s";
-  render();
+const hasRVFC = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
+if (hasRVFC) { const onFrame = () => { detect(); video.requestVideoFrameCallback(onFrame); }; video.requestVideoFrameCallback(onFrame); }
+
+function loop(now) {
+  if (!hasRVFC) detect();
+  render(now);
+  if (now - perfT > 1000) {
+    if (tracked || detCount) $("perf").textContent = detCount ? `${Math.round(detCount * 1000 / (now - perfT))} frames/s · ${(detMs / detCount).toFixed(0)} ms each` : "Paused";
+    detCount = 0; detMs = 0; perfT = now;
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---------------- avatar picker ---------------- */
+function buildPicker() {
+  const box = $("avatars");
+  Object.entries(AVATARS).forEach(([key, av]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "av"; b.dataset.key = key; b.setAttribute("aria-pressed", key === avatarKey);
+    const cv = document.createElement("canvas"); cv.width = 128; cv.height = 168;
+    const label = document.createElement("span"); label.textContent = av.name;
+    b.append(cv, label); box.append(b);
+    const ctx = cv.getContext("2d");
+    const G = buildG(idlePose(.35), 128, 168, 3 / 4, { centred: false, mirror: false, fill: true });
+    G.t = 0; G.ink = C.chalk; G.bgFill = C.stage;
+    drawAvatar(ctx, av, G, false);
+    b.addEventListener("click", () => {
+      avatarKey = key;
+      box.querySelectorAll(".av").forEach(x => x.setAttribute("aria-pressed", x.dataset.key === key));
+    });
+  });
+}
+
+/* ---------------- video loading ---------------- */
+let videoURL = null;
+function loadVideo(f) {
+  if (!f) return;
+  if (f.type && !f.type.startsWith("video/")) { setStatus("bad", "That file is not a video."); return; }
+  if (recording) stopRecording();
+  if (videoURL) URL.revokeObjectURL(videoURL);
+  videoURL = URL.createObjectURL(f);
+  tracked = false; lost = false; pose = null; resetFilters(); lastVT = -1;
+  video.src = videoURL;
+  $("drop").hidden = true; $("videobox").hidden = false; $("change").hidden = false;
+  $("play").disabled = false; $("record").disabled = false; $("save").hidden = true;
+  video.play().catch(() => {});
+}
+$("file").addEventListener("change", e => { loadVideo(e.target.files[0]); e.target.value = ""; });
+const drop = $("drop");
+["dragenter", "dragover"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+document.addEventListener("drop", e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (!f) return; if (f.type.startsWith("image/")) loadFace(f); else loadVideo(f); });
+
+video.addEventListener("loadedmetadata", () => {
+  aspect = video.videoWidth / video.videoHeight || 3 / 4;
+  stage.style.aspectRatio = video.videoWidth + "/" + video.videoHeight;
+  $("vinfo").textContent = `${video.videoWidth}×${video.videoHeight}, ${video.duration.toFixed(1)} s`;
 });
-video.addEventListener("error",function(){setStatus("bad","This browser cannot play that video. Try an MP4.")});
-video.addEventListener("loadeddata",tick);
-video.addEventListener("seeked",tick);
-video.addEventListener("play",function(){$("play").textContent="Pause";loop()});
-video.addEventListener("pause",function(){$("play").textContent="Play"});
-$("play").addEventListener("click",function(){if(video.paused)video.play().catch(function(){});else video.pause()});
+video.addEventListener("error", () => { if (video.src) setStatus("bad", "This browser cannot play that video. Try an MP4."); });
+video.addEventListener("seeked", () => { resetFilters(); lastVT = -1; if (!hasRVFC) detect(); });
+video.addEventListener("play", () => { $("play").textContent = "Pause"; });
+video.addEventListener("pause", () => { $("play").textContent = "Play"; });
+video.addEventListener("ended", () => { if (recording) stopRecording(); });
+$("play").addEventListener("click", () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
 
-[optCenter,optJoints,optOnVideo].forEach(function(el){el.addEventListener("change",function(){smooth=null;render()})});
-$("detail").addEventListener("change",function(){
-  if(!pose)return;
-  setStatus("wait","Switching detail level");
-  pose.setOptions({modelComplexity:+this.value});
-  tick().then(function(){if(ready&&isRest)setStatus("ok","Tracker ready")});
-});
+/* ---------------- face photo ---------------- */
+function loadFace(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  const img = new Image(), url = URL.createObjectURL(f);
+  img.onload = () => { faceImg = img; $("faceWrap").hidden = false; $("useFace").checked = true; $("faceinfo").textContent = "Face photo added"; };
+  img.onerror = () => { $("faceinfo").textContent = "That photo could not be opened."; };
+  img.src = url;
+}
+$("faceFile").addEventListener("change", e => { loadFace(e.target.files[0]); e.target.value = ""; });
 
-if(window.ResizeObserver)new ResizeObserver(render).observe(stage);
-window.addEventListener("resize",render);
-render();
-initTracker();
-})();
+/* ---------------- recording ---------------- */
+function pickMime() {
+  if (!window.MediaRecorder) return null;
+  return ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(m => MediaRecorder.isTypeSupported(m)) || "";
+}
+async function startRecording() {
+  const mime = pickMime();
+  if (mime === null || !stage.captureStream) { setStatus("bad", "This browser cannot record video."); return; }
+  const chunks = [];
+  const stream = stage.captureStream(30);
+  try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 6e6 } : {}); }
+  catch (e) { setStatus("bad", "This browser cannot record video."); return; }
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const type = recorder.mimeType || mime || "video/webm";
+    const blob = new Blob(chunks, { type });
+    const a = $("save"); if (a.href) URL.revokeObjectURL(a.href);
+    a.href = URL.createObjectURL(blob);
+    a.download = "avatar-" + avatarKey + (type.includes("mp4") ? ".mp4" : ".webm");
+    a.hidden = false;
+    setStatus("ok", "Recording ready to save");
+  };
+  recording = true; video.loop = false; video.pause(); video.currentTime = 0; resetFilters();
+  await new Promise(r => video.addEventListener("seeked", r, { once: true }));
+  recorder.start(250);
+  $("record").textContent = "Stop recording"; $("record").classList.add("rec");
+  $("save").hidden = true;
+  setStatus("rec", "Recording");
+  video.play().catch(() => {});
+}
+function stopRecording() {
+  if (!recording) return;
+  recording = false; video.loop = true;
+  if (recorder && recorder.state !== "inactive") recorder.stop();
+  $("record").textContent = "Record avatar video"; $("record").classList.remove("rec");
+}
+$("record").addEventListener("click", () => { if (recording) stopRecording(); else startRecording(); });
+
+/* ---------------- settings ---------------- */
+$("detail").addEventListener("change", e => loadModel(e.target.value));
+$("smooth").addEventListener("change", resetFilters);
+["center", "mirror"].forEach(id => $(id).addEventListener("change", () => { centre = null; }));
+
+buildPicker();
+requestAnimationFrame(loop);
+loadModel($("detail").value);
 </script>
 </body>
 </html>
