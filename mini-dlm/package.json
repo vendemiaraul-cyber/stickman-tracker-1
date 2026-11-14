@@ -1,0 +1,26 @@
+{
+  "name": "mini-dlm",
+  "version": "1.0.0",
+  "description": "Mini DLM 1.0: multi-person body tracking for the browser with smoothing, stable IDs, motion prediction and hidden-limb filling. Built on MediaPipe Pose.",
+  "type": "module",
+  "main": "mini-dlm.js",
+  "module": "mini-dlm.js",
+  "types": "mini-dlm.d.ts",
+  "exports": {
+    ".": {
+      "types": "./mini-dlm.d.ts",
+      "import": "./mini-dlm.js"
+    }
+  },
+  "files": ["mini-dlm.js", "mini-dlm.d.ts", "README.md"],
+  "scripts": {
+    "test": "node test.mjs"
+  },
+  "keywords": ["pose", "body-tracking", "mediapipe", "motion-capture", "skeleton", "browser"],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vendemiaraul-cyber/stickman-tracker-1",
+    "directory": "mini-dlm"
+  }
+}

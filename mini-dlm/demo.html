@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini DLM 1.0 Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout idea: a library demo. Video with live skeleton on the left, live output JSON on the right, quick-start code below. Single dark theme by choice. */
+  --bg:#1b2231;
+  --panel:#252e41;
+  --edge:#36415a;
+  --text:#f4efe4;
+  --muted:#96a1b8;
+  --accent:#ff8a3d;
+  --ok:#62d2a6;
+  --bad:#ff7a7a;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.5 var(--body)}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-direction:column;gap:6px}
+h1{font:800 clamp(1.7rem,5vw,2.4rem)/1.05 var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 span{color:var(--accent)}
+header p{margin:0;color:var(--muted);max-width:62ch}
+h2{font:700 .8rem var(--display);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0}
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:820px){.grid{grid-template-columns:1.3fr 1fr;align-items:start}}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.head small{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+.view{position:relative;border-radius:10px;overflow:hidden;background:var(--bg)}
+.view video{display:block;width:100%;height:auto;max-height:70vh}
+.view canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.drop{border:2px dashed var(--edge);border-radius:10px;padding:40px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;color:var(--muted)}
+.drop p{margin:0}
+[hidden]{display:none!important}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.btn{font:600 .95rem var(--body);color:var(--bg);background:var(--accent);border:0;border-radius:10px;padding:10px 16px;cursor:pointer;display:inline-flex}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--edge)}
+.btn:focus-within,.btn:focus-visible,select:focus-visible,.check:focus-within{outline:2px solid var(--text);outline-offset:2px}
+.field,.check{display:inline-flex;align-items:center;gap:8px;font-size:.92rem}
+.check input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+select{font:500 .92rem var(--body);color:var(--text);background:var(--bg);border:1px solid var(--edge);border-radius:8px;padding:7px 10px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+pre{margin:0;background:var(--bg);border-radius:10px;padding:12px;overflow:auto;font:400 .8rem/1.55 var(--mono);color:#cfd6e4;max-height:420px}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:.86rem}
+.status i{width:9px;height:9px;border-radius:50%;background:#ffcf5c}
+.status[data-s="ok"] i{background:var(--ok)}
+.status[data-s="bad"] i{background:var(--bad)}
+.people{display:flex;gap:8px;flex-wrap:wrap}
+.people span{font:600 .78rem var(--body);padding:3px 10px;border-radius:999px;background:var(--bg);font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mini DLM <span>1.0</span></h1>
+    <p>Multi-person body tracking for the browser in one JavaScript file. This page runs the library on your video. Nothing is uploaded.</p>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-label="Video">
+      <div class="head"><h2>Video</h2><div class="status" id="status" data-s="wait" role="status"><i></i><span id="statusText">Loading Mini DLM</span></div></div>
+      <div class="drop" id="drop">
+        <p>Choose a video with one or more people moving.</p>
+        <label class="btn" for="file">Choose video<input class="sr" type="file" id="file" accept="video/*"></label>
+      </div>
+      <div class="view" id="view" hidden>
+        <video id="video" playsinline muted loop controls></video>
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="row">
+        <label class="field" for="people">People
+          <select id="people"><option value="1">1</option><option value="2" selected>Up to 2</option><option value="4">Up to 4</option><option value="6">Up to 6</option></select>
+        </label>
+        <label class="field" for="smoothing">Smoothing
+          <select id="smoothing"><option value="off">Off</option><option value="light" selected>Light</option><option value="strong">Strong</option></select>
+        </label>
+        <label class="check"><input type="checkbox" id="predict" checked><span>Prediction</span></label>
+        <label class="check"><input type="checkbox" id="fill" checked><span>Fill hidden limbs</span></label>
+        <label class="btn ghost" for="file" id="change" hidden>Change video</label>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Output">
+      <div class="head"><h2>Live output</h2><small id="stats">Waiting for video</small></div>
+      <div class="people" id="peopleList"></div>
+      <pre id="json">// The first person's data appears here</pre>
+    </section>
+  </div>
+
+  <section class="card" aria-label="Quick start">
+    <div class="head"><h2>Use it on your site</h2><small><a href="https://github.com/vendemiaraul-cyber/stickman-tracker-1/tree/main/mini-dlm">Documentation</a></small></div>
+<pre>import { MiniDLM, drawSkeleton } from "https://cdn.jsdelivr.net/gh/vendemiaraul-cyber/stickman-tracker-1@main/mini-dlm/mini-dlm.js";
+
+const dlm = await MiniDLM.create({ maxPeople: 2 });
+dlm.start(video, people => {
+  for (const person of people) drawSkeleton(ctx, person);
+});</pre>
+  </section>
+</div>
+
+<script type="module">
+import { MiniDLM, drawSkeleton, VERSION } from "./mini-dlm.js";
+
+const COLORS = ["#ff8a3d", "#5ce1e6", "#b78cff", "#62d2a6", "#ffcf5c", "#ff7a7a"];
+const $ = id => document.getElementById(id);
+const video = $("video"), canvas = $("canvas"), ctx = canvas.getContext("2d");
+const setStatus = (s, t) => { $("status").dataset.s = s; $("statusText").textContent = t; };
+let dlm = null, stop = null, lastJson = 0;
+
+const round = v => Math.round(v * 1000) / 1000;
+function summary(p) {
+  const pick = ["nose", "left_shoulder", "right_shoulder", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_ankle", "right_ankle"];
+  const kp = {}; pick.forEach(n => { const k = p.keypoints[n]; kp[n] = { x: round(k.x), y: round(k.y), visibility: round(k.visibility), ...(k.filled ? { filled: true } : {}) }; });
+  return { id: p.id, slot: p.slot, confidence: round(p.confidence), keypoints: kp, "…": "33 points in total" };
+}
+
+function onFrame(people, stats) {
+  const r = canvas.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(r.width * d); canvas.height = Math.round(r.height * d);
+  people.forEach(p => drawSkeleton(ctx, p, { color: COLORS[p.slot % COLORS.length], lineWidth: Math.max(3, canvas.width / 200) }));
+  $("stats").textContent = `${stats.fps} frames/s · ${stats.inferenceMs} ms · ${stats.backend}`;
+  const now = performance.now();
+  if (now - lastJson > 250) {
+    lastJson = now;
+    $("peopleList").replaceChildren(...people.map(p => { const s = document.createElement("span"); s.style.color = COLORS[p.slot % COLORS.length]; s.textContent = `Person ${p.slot + 1} · id ${p.id}`; return s; }));
+    $("json").textContent = people.length ? JSON.stringify(summary(people[0]), null, 2) : "// No one found in this frame";
+    if (people.length) setStatus("ok", `Tracking ${people.length} ${people.length === 1 ? "person" : "people"}`);
+  }
+}
+
+function begin() { if (stop) stop(); if (dlm && video.src) { dlm.reset(); stop = dlm.start(video, onFrame); } }
+
+$("file").addEventListener("change", e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  video.src = URL.createObjectURL(f);
+  $("drop").hidden = true; $("view").hidden = false; $("change").hidden = false;
+  video.play().catch(() => {});
+  begin();
+});
+$("people").addEventListener("change", async e => { if (!dlm) return; setStatus("wait", "Reloading model"); await dlm.setOptions({ maxPeople: +e.target.value }); setStatus("ok", "Ready"); begin(); });
+$("smoothing").addEventListener("change", e => dlm && dlm.setOptions({ smoothing: e.target.value }));
+$("predict").addEventListener("change", e => dlm && dlm.setOptions({ predict: e.target.checked }));
+$("fill").addEventListener("change", e => dlm && dlm.setOptions({ fillHiddenLimbs: e.target.checked }));
+
+try {
+  dlm = await MiniDLM.create({ maxPeople: +$("people").value });
+  setStatus("ok", `Mini DLM ${VERSION} ready on ${dlm.backend}` + (video.src ? "" : ". Choose a video."));
+  begin();
+} catch (e) {
+  console.error(e);
+  setStatus("bad", "Mini DLM failed to load. Check your connection and reload.");
+}
+</script>
+</body>
+</html>
