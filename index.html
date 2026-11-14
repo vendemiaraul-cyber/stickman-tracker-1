@@ -66,6 +66,16 @@ h2{font-family:var(--display);font-weight:600;font-size:.82rem;letter-spacing:.0
 select{font:500 .92rem var(--body);color:var(--chalk);background:var(--stage);border:1px solid var(--edge);border-radius:8px;padding:8px 10px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .note{color:var(--muted);font-size:.86rem;margin:0;max-width:70ch}
+.models{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.model{text-align:left;display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:12px;background:var(--stage);border:2px solid transparent;color:var(--chalk);font:400 .85rem var(--body);cursor:pointer}
+.model b{font:700 1rem var(--display);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.model em{font-style:normal;color:var(--muted)}
+.model .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.model .tags span{font-size:.74rem;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--muted);font-variant-numeric:tabular-nums}
+.model .tags span.multi{color:var(--ok)}
+.model .badge{font:600 .68rem var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--stage);background:var(--marker);padding:2px 7px;border-radius:999px}
+.model[aria-pressed="true"]{border-color:var(--marker)}
+.model:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
 hr{border:0;border-top:1px solid var(--edge);margin:2px 0;width:100%}
 @media (prefers-reduced-motion:reduce){.pill[data-state="rec"] i{animation:none}}
 </style>
@@ -86,7 +96,7 @@ hr{border:0;border-top:1px solid var(--edge);margin:2px 0;width:100%}
     <section class="card" aria-label="Source video">
       <div class="cardhead"><h2>Your video</h2><small id="vinfo"></small></div>
       <div class="drop" id="drop">
-        <p>Pick a video of one person moving. Full body in frame works best, but upper body works too.</p>
+        <p>Pick a video of people moving. Full bodies in frame work best, but upper bodies work too.</p>
         <label class="btn" for="file">Choose video<input class="sr" type="file" id="file" accept="video/*"></label>
       </div>
       <div class="videobox" id="videobox" hidden>
@@ -96,12 +106,29 @@ hr{border:0;border-top:1px solid var(--edge);margin:2px 0;width:100%}
     </section>
   </div>
 
+  <section class="card" aria-label="Models">
+    <div class="cardhead"><h2>Models</h2><small id="modelinfo"></small></div>
+    <div class="models" id="models"></div>
+    <div class="row">
+      <label class="field" for="people">People to track
+        <select id="people">
+          <option value="1">1</option>
+          <option value="2" selected>Up to 2</option>
+          <option value="3">Up to 3</option>
+          <option value="4">Up to 4</option>
+          <option value="6">Up to 6</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="mix" checked><span>Different avatar for each person</span></label>
+    </div>
+  </section>
+
   <section class="card" aria-label="Choose avatar">
     <div class="cardhead"><h2>Choose avatar</h2><small id="faceinfo"></small></div>
     <div class="avatars" id="avatars"></div>
     <div class="row">
       <label class="btn ghost" for="faceFile">Add face photo<input class="sr" type="file" id="faceFile" accept="image/*"></label>
-      <label class="check" id="faceWrap" hidden><input type="checkbox" id="useFace" checked><span>Use my photo as the head</span></label>
+      <label class="check" id="faceWrap" hidden><input type="checkbox" id="useFace" checked><span>Use my photo as the head of person 1</span></label>
     </div>
   </section>
 
@@ -135,32 +162,42 @@ hr{border:0;border-top:1px solid var(--edge);margin:2px 0;width:100%}
           <option value="2">Strong</option>
         </select>
       </label>
-      <label class="field" for="detail">Tracking
-        <select id="detail">
-          <option value="lite" selected>Fast</option>
-          <option value="full">Balanced</option>
-          <option value="heavy">Precise</option>
-        </select>
-      </label>
     </div>
-    <p class="note">The video stays on your device. Tracking runs in this page on your graphics chip when it can, and follows one person using 33 body points. Recording plays the video from the start and saves the avatar as a video file.</p>
+    <p class="note">The video stays on your device. Tracking runs in this page on your graphics chip when it can. Each model is downloaded the first time you pick it. Recording plays the video from the start and saves the avatar as a video file.</p>
   </section>
 </div>
 
 <script type="module">
 "use strict";
+/* ---------------- model catalogue ---------------- */
 const TV = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
-const MODEL_ROOT = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/";
-const MODELS = {
-  lite:  MODEL_ROOT + "pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-  full:  MODEL_ROOT + "pose_landmarker_full/float16/1/pose_landmarker_full.task",
-  heavy: MODEL_ROOT + "pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
+const MP_ROOT = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/";
+const MP_FILES = {
+  lite:  MP_ROOT + "pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+  full:  MP_ROOT + "pose_landmarker_full/float16/1/pose_landmarker_full.task",
+  heavy: MP_ROOT + "pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task"
 };
+const TFJS = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js";
+const PDJS = "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js";
+
+const MODELS = [
+  { id: "mini-dlm", name: "Mini DLM 1.0", badge: "Default", by: "Made here · runs on MediaPipe Pose Lite", kind: "mp", file: "lite", points: 33, max: 6, predict: true,
+    blurb: "Predicts motion between video frames, keeps each person's identity and fills in hidden limbs. Smoothest playback." },
+  { id: "mp-lite", name: "MediaPipe Pose Lite", by: "Google", kind: "mp", file: "lite", points: 33, max: 6, blurb: "Google's fastest body tracker." },
+  { id: "mp-full", name: "MediaPipe Pose Full", by: "Google", kind: "mp", file: "full", points: 33, max: 6, blurb: "Balances speed and accuracy." },
+  { id: "mp-heavy", name: "MediaPipe Pose Heavy", by: "Google", kind: "mp", file: "heavy", points: 33, max: 6, blurb: "Most accurate. Slow on phones." },
+  { id: "movenet-lightning", name: "MoveNet Lightning", by: "Google · TensorFlow.js", kind: "tf", points: 17, max: 1, blurb: "Very fast. Trained on dance, fitness and yoga." },
+  { id: "movenet-thunder", name: "MoveNet Thunder", by: "Google · TensorFlow.js", kind: "tf", points: 17, max: 1, blurb: "Sharper than Lightning, a bit slower." },
+  { id: "movenet-multi", name: "MoveNet MultiPose", by: "Google · TensorFlow.js", kind: "tf", points: 17, max: 6, blurb: "Fast tracking for groups of up to 6." },
+  { id: "posenet", name: "PoseNet", by: "Google · TensorFlow.js", kind: "tf", points: 17, max: 6, blurb: "The classic 2018 model. Less precise." }
+];
+
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
 const css = getComputedStyle(document.documentElement);
 const tok = n => css.getPropertyValue(n).trim();
 const C = { chalk: tok("--chalk"), marker: tok("--marker"), stage: tok("--stage"), edge: tok("--edge"), panel: tok("--panel") };
+const PERSON_COLORS = [C.marker, "#5ce1e6", "#b78cff", "#62d2a6", "#ffcf5c", "#ff7a7a"];
 const BGS = {
   studio: { fill: C.stage, dots: C.edge, ink: C.chalk },
   plain:  { fill: "#11161f", dots: null, ink: C.chalk },
@@ -168,17 +205,19 @@ const BGS = {
   green:  { fill: "#00b140", dots: null, ink: "#ffffff" }
 };
 
-// MediaPipe Pose landmark indices
+// MediaPipe Pose landmark indices (33 points). 17-point models are mapped onto these.
 const NOSE=0, LEAR=7, REAR=8, LSH=11, RSH=12, LEL=13, REL=14, LWR=15, RWR=16, LIX=19, RIX=20,
       LHP=23, RHP=24, LKN=25, RKN=26, LAN=27, RAN=28, LFT=31, RFT=32;
+const COCO_TO_MP = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
 const ARMS = { L: [LSH, LEL, LWR, LIX], R: [RSH, REL, RWR, RIX] };
 const LEGS = { L: [LHP, LKN, LAN, LFT], R: [RHP, RKN, RAN, RFT] };
 const ARM_LEN = [0.62, 0.58, 0.17], LEG_LEN = [0.92, 0.9, 0.26];
 const SKEL = [[LSH,RSH],[LSH,LHP],[RSH,RHP],[LHP,RHP],[LSH,LEL],[LEL,LWR],[RSH,REL],[REL,RWR],[LHP,LKN],[LKN,LAN],[LAN,LFT],[RHP,RKN],[RKN,RAN],[RAN,RFT]];
+const vis = p => (p && !p.none) ? (p.visibility ?? 1) : 0;
 
 /* ---------------- idle pose (before a video is tracked) ---------------- */
 function idlePose(t) {
-  const p = []; for (let i = 0; i < 33; i++) p.push({ x: .5, y: .5, z: 0, visibility: 0 });
+  const p = []; for (let i = 0; i < 33; i++) p.push({ x: .5, y: .5, z: 0, visibility: 0, none: true });
   const bob = Math.sin(t * 2.2) * .006;
   const s = (i, x, y, z = 0) => { p[i] = { x, y: y + bob, z, visibility: 1 }; };
   s(NOSE, .5, .165, -.2); s(LEAR, .535, .16); s(REAR, .465, .16);
@@ -207,64 +246,70 @@ class OneEuro {
   }
 }
 const SMOOTH = [null, { minCut: 2.2, beta: 6 }, { minCut: .8, beta: 3 }];
-let filters = null;
-function resetFilters() { filters = null; centre = null; }
-function smoothPose(lm, t) {
+function smoothPose(track, lm, t) {
   const cfg = SMOOTH[+$("smooth").value];
-  if (!cfg) return lm.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 1 }));
-  if (!filters) filters = lm.map(() => [0, 1, 2].map(() => new OneEuro(cfg.minCut, cfg.beta)));
-  return lm.map((p, i) => ({ x: filters[i][0].f(p.x, t), y: filters[i][1].f(p.y, t), z: filters[i][2].f(p.z, t), visibility: p.visibility ?? 1 }));
+  if (!cfg) return lm.map(p => ({ ...p }));
+  if (!track.filters) track.filters = lm.map(() => [0, 1, 2].map(() => new OneEuro(cfg.minCut, cfg.beta)));
+  return lm.map((p, i) => p.none ? { ...p } : ({ x: track.filters[i][0].f(p.x, t), y: track.filters[i][1].f(p.y, t), z: track.filters[i][2].f(p.z || 0, t), visibility: p.visibility ?? 1 }));
 }
 
 /* ---------------- geometry ---------------- */
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const midp = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: ((a.z || 0) + (b.z || 0)) / 2, v: Math.min(a.v, b.v) });
-const ok = p => p && p.v >= .3;
-let centre = null;
+const ok = p => p && !p.none && p.v >= .3;
 
-function buildG(lm, W, H, aspect, opts) {
-  let fw = W, fh = W / aspect; if (fh > H) { fh = H; fw = H * aspect; }
-  const ox = (W - fw) / 2, oy = (H - fh) / 2;
-  let P = lm.map(p => ({ x: ox + (opts.mirror ? 1 - p.x : p.x) * fw, y: oy + p.y * fh, z: (p.z || 0) * fw, v: p.visibility ?? 1 }));
+function frameBox(W, H, aspect) { let fw = W, fh = W / aspect; if (fh > H) { fh = H; fw = H * aspect; } return { fw, fh, ox: (W - fw) / 2, oy: (H - fh) / 2 }; }
 
-  // hips hidden (upper-body video): place them under the shoulders
+// Stage 1: normalized landmarks -> pixels, hip repair, torso size
+function prepare(lm, box, opts) {
+  const P = lm.map(p => ({ x: box.ox + (opts.mirror ? 1 - p.x : p.x) * box.fw, y: box.oy + p.y * box.fh, z: (p.z || 0) * box.fw, v: vis(p), none: !!p.none }));
   let hipsGuessed = !(ok(P[LHP]) || ok(P[RHP]));
-  if (ok(P[LSH]) && ok(P[RSH]) && opts.fill && !(ok(P[LHP]) || ok(P[RHP]))) {
-    const sw = Math.max(dist(P[LSH], P[RSH]), fh * .08), drop = sw * 1.35;
-    const plaus = (h, s) => { const d = dist(h, s) / drop; return d > .6 && d < 1.6; };
-    if (!plaus(P[LHP], P[LSH]) || !plaus(P[RHP], P[RSH])) {
+  if (opts.fill && hipsGuessed && ok(P[LSH]) && ok(P[RSH])) {
+    const sw = Math.max(dist(P[LSH], P[RSH]), box.fh * .08), drop = sw * 1.35;
+    const plaus = (h, s) => !h.none && dist(h, s) / drop > .6 && dist(h, s) / drop < 1.6 && h.y > s.y;
+    if (plaus(P[LHP], P[LSH]) && plaus(P[RHP], P[RSH])) { P[LHP].v = P[RHP].v = .6; hipsGuessed = false; }
+    else {
       P[LHP] = { x: P[LSH].x + (P[RSH].x - P[LSH].x) * .12, y: P[LSH].y + drop, z: P[LSH].z, v: .6 };
       P[RHP] = { x: P[RSH].x + (P[LSH].x - P[RSH].x) * .12, y: P[RSH].y + drop, z: P[RSH].z, v: .6 };
-    } else { P[LHP].v = P[RHP].v = .6; hipsGuessed = false; }
+    }
   }
-  let sh = midp(P[LSH], P[RSH]), hp = midp(P[LHP], P[RHP]);
-  let u = dist(sh, hp); if (!(u > fh * .03)) u = fh * .22;
+  const sh = midp(P[LSH], P[RSH]), hp = midp(P[LHP], P[RHP]);
+  let u = dist(sh, hp); if (!(u > box.fh * .02)) u = box.fh * .22;
+  return { P, hp, u, hipsGuessed };
+}
 
-  if (opts.centred) {
-    const k = H * .215 / u;
-    if (!centre) centre = { x: hp.x, y: hp.y, k };
-    else { centre.x += (hp.x - centre.x) * .3; centre.y += (hp.y - centre.y) * .3; centre.k += (k - centre.k) * .15; }
-    const cx = W / 2, cy = H * .53, c = centre;
-    P = P.map(p => ({ x: cx + (p.x - c.x) * c.k, y: cy + (p.y - c.y) * c.k, z: p.z * c.k, v: p.v }));
-    sh = midp(P[LSH], P[RSH]); hp = midp(P[LHP], P[RHP]); u *= c.k;
-  }
+// Stage 2: optional group transform (keeps everyone centred and in frame)
+let centre = null;
+function groupTransform(Bs, W, H) {
+  const maxU = Math.max(...Bs.map(b => b.u));
+  const xs = Bs.map(b => b.hp.x), minX = Math.min(...xs), maxX = Math.max(...xs);
+  const tx = (minX + maxX) / 2, ty = Bs.reduce((a, b) => a + b.hp.y, 0) / Bs.length;
+  const k = Math.min(H * .215 / maxU, W * .94 / (maxX - minX + maxU * 2.6));
+  if (!centre) centre = { x: tx, y: ty, k };
+  else { centre.x += (tx - centre.x) * .3; centre.y += (ty - centre.y) * .3; centre.k += (k - centre.k) * .15; }
+  return { cx: W / 2, cy: H * .53, x: centre.x, y: centre.y, k: centre.k };
+}
+function applyT(B, T) {
+  B.P = B.P.map(p => ({ x: T.cx + (p.x - T.x) * T.k, y: T.cy + (p.y - T.y) * T.k, z: p.z * T.k, v: p.v, none: p.none }));
+  B.u *= T.k;
+}
 
+// Stage 3: limb filling, head pose, facing and depth order
+function finish(B, opts) {
+  const P = B.P, u = B.u;
+  const sh = midp(P[LSH], P[RSH]), hp = midp(P[LHP], P[RHP]);
   let up = { x: sh.x - hp.x, y: sh.y - hp.y }; const ul = Math.hypot(up.x, up.y) || 1;
   up = { x: up.x / ul, y: up.y / ul }; const down = { x: -up.x, y: -up.y };
-
   if (opts.fill) {
     fillChain(P, ARMS.L, ARM_LEN, u, down, true, null); fillChain(P, ARMS.R, ARM_LEN, u, down, true, null);
-    fillChain(P, LEGS.L, LEG_LEN, u, down, !hipsGuessed, hp); fillChain(P, LEGS.R, LEG_LEN, u, down, !hipsGuessed, hp);
+    fillChain(P, LEGS.L, LEG_LEN, u, down, !B.hipsGuessed, hp); fillChain(P, LEGS.R, LEG_LEN, u, down, !B.hipsGuessed, hp);
   }
-
-  // head
   let hc;
   if (ok(P[LEAR]) && ok(P[REAR])) hc = midp(P[LEAR], P[REAR]);
   else if (ok(P[NOSE])) hc = P[NOSE];
   else hc = { x: sh.x + up.x * .62 * u, y: sh.y + up.y * .62 * u };
   hc = { x: hc.x + up.x * .06 * u, y: hc.y + up.y * .06 * u };
-  const neck = { x: hc.x - sh.x, y: hc.y - sh.y };
-  const tilt = Math.atan2(neck.x, -neck.y);
+  const tilt = Math.atan2(hc.x - sh.x, -(hc.y - sh.y));
   let look = 0;
   if (ok(P[NOSE]) && (ok(P[LEAR]) || ok(P[REAR]))) {
     const em = ok(P[LEAR]) && ok(P[REAR]) ? midp(P[LEAR], P[REAR]) : (ok(P[LEAR]) ? P[LEAR] : P[REAR]);
@@ -273,10 +318,9 @@ function buildG(lm, W, H, aspect, opts) {
   }
   const sx = P[LSH].x - P[RSH].x;
   const front = Math.abs(sx) < .18 * u ? true : (opts.mirror ? sx < 0 : sx > 0);
-  const zs = ids => ids.reduce((a, i) => a + P[i].z, 0);
+  const zs = ids => ids.reduce((a, i) => a + (P[i].z || 0), 0);
   const near = zs([LSH, LEL, LWR, LHP, LKN, LAN]) <= zs([RSH, REL, RWR, RHP, RKN, RAN]) ? "L" : "R";
-  const perp = { x: -up.y, y: up.x };
-  return { P, u, sh, hp, up, down, perp, head: hc, tilt, look, front, near, W, H, fill: opts.fill };
+  return { P, u, sh, hp, up, down, perp: { x: -up.y, y: up.x }, head: hc, tilt, look, front, near };
 }
 
 function fillChain(P, ids, lens, u, down, trustGuess, hipMid) {
@@ -284,10 +328,10 @@ function fillChain(P, ids, lens, u, down, trustGuess, hipMid) {
   for (let i = 1; i < ids.length; i++) {
     const prev = P[ids[i - 1]], p = P[ids[i]];
     if (ok(p)) continue;
-    const L = lens[i - 1] * u, d = dist(prev, p);
+    const L = lens[i - 1] * u, d = p.none ? 0 : dist(prev, p);
     // keep the model's own guess when it is anatomically plausible (legs must point roughly downward)
     const downish = !hipMid || ((p.x - prev.x) * down.x + (p.y - prev.y) * down.y) / (d || 1) > .3;
-    if (trustGuess && d > L * .55 && d < L * 1.6 && downish) { p.v = .6; continue; }
+    if (!p.none && trustGuess && d > L * .55 && d < L * 1.6 && downish) { p.v = .6; continue; }
     let dir = down;
     if (hipMid && i === 1) { const ox = prev.x - hipMid.x, oy = prev.y - hipMid.y, ol = Math.hypot(ox, oy) || 1; dir = { x: down.x + ox / ol * .12, y: down.y + oy / ol * .12 }; }
     if (i >= 2) { const pp = P[ids[i - 2]], dx = prev.x - pp.x, dy = prev.y - pp.y, dd = Math.hypot(dx, dy); if (dd > 1) dir = { x: dx / dd, y: dy / dd }; }
@@ -543,104 +587,237 @@ function paintBg(ctx, W, H, bg) {
   for (let y = step / 2; y < H; y += step) for (let x = step / 2; x < W; x += step) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
 }
 
+
 /* ---------------- page state ---------------- */
 const video = $("video"), stage = $("stage"), overlay = $("overlay");
 const sctx = stage.getContext("2d"), octx = overlay.getContext("2d");
-let avatarKey = "pip";
-let pose = null, tracked = false, lost = false, aspect = 3 / 4;
-let landmarker = null, PoseLandmarker = null, vision = null, gpu = false, loadingModel = false;
+const AV_KEYS = Object.keys(AVATARS);
+let avatarKey = "pip", modelId = "mini-dlm", model = MODELS[0];
+let detector = null, busy = false, loadToken = 0, aspect = 3 / 4;
+let tracks = [], lastDetTs = 0, everTracked = false;
 let lastTs = 0, lastVT = -1, detCount = 0, detMs = 0, perfT = performance.now();
 let recorder = null, recording = false;
 
 function setStatus(state, text) { $("status").dataset.state = state; $("statusText").textContent = text; }
-
 function fit(canvas) {
   const r = canvas.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
   const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
 }
+function resetTracks() { tracks = []; centre = null; everTracked = false; lastVT = -1; }
 
+/* ---------------- people: identity across frames ---------------- */
+function centreOf(lm) {
+  if (vis(lm[LHP]) > .3 && vis(lm[RHP]) > .3) return { x: (lm[LHP].x + lm[RHP].x) / 2, y: (lm[LHP].y + lm[RHP].y) / 2 };
+  return { x: (lm[LSH].x + lm[RSH].x) / 2, y: (lm[LSH].y + lm[RSH].y) / 2 + .15 };
+}
+function freeSlot() { const used = new Set(tracks.map(t => t.slot)); let s = 0; while (used.has(s)) s++; return s; }
+function feed(t, d, ts) { const lm = smoothPose(t, d.lm, ts); t.prev = t.lm; t.prevT = t.t; t.lm = lm; t.t = ts; t.seen = ts; t.c = d.c; }
+function updateTracks(poses, ts) {
+  const dets = poses.map(lm => ({ lm, c: centreOf(lm) }));
+  const pairs = [];
+  tracks.forEach((t, ti) => dets.forEach((d, di) => pairs.push([Math.hypot(t.c.x - d.c.x, t.c.y - d.c.y), ti, di])));
+  pairs.sort((a, b) => a[0] - b[0]);
+  const usedT = new Set(), usedD = new Set();
+  for (const [dd, ti, di] of pairs) {
+    if (dd > .3 || usedT.has(ti) || usedD.has(di)) continue;
+    usedT.add(ti); usedD.add(di); feed(tracks[ti], dets[di], ts);
+  }
+  dets.forEach((d, di) => { if (usedD.has(di)) return; const t = { slot: freeSlot(), filters: null }; tracks.push(t); feed(t, d, ts); });
+  tracks = tracks.filter(t => ts - t.seen < 1000);
+  if (dets.length) everTracked = true;
+}
+// Mini DLM: extrapolate between detections so motion stays fluid at screen refresh rate
+function shownPose(t, now) {
+  if (!model.predict || video.paused || !t.prev) return t.lm;
+  const span = t.t - t.prevT; if (!(span > 5 && span < 200)) return t.lm;
+  const k = Math.min(Math.max(now - t.t, 0), 50) / span; if (k <= 0) return t.lm;
+  return t.lm.map((p, i) => { const q = t.prev[i]; if (p.none || q.none) return p; return { x: p.x + (p.x - q.x) * k, y: p.y + (p.y - q.y) * k, z: (p.z || 0) + ((p.z || 0) - (q.z || 0)) * k, visibility: p.visibility }; });
+}
+function avatarFor(t) { return $("mix").checked ? AV_KEYS[(AV_KEYS.indexOf(avatarKey) + t.slot) % AV_KEYS.length] : avatarKey; }
+
+/* ---------------- render ---------------- */
 function render(now) {
   const t = now / 1000;
   if (!recording) fit(stage);
   const W = stage.width, H = stage.height, bg = BGS[$("bg").value];
   paintBg(sctx, W, H, bg);
-  const idle = !tracked;
-  const lm = idle ? idlePose(t) : pose;
-  const G = buildG(lm, W, H, idle ? 3 / 4 : aspect, { centred: !idle && $("center").checked, mirror: !idle && $("mirror").checked, fill: $("fill").checked || idle });
-  G.t = t; G.ink = bg.ink; G.bgFill = bg.fill; G.mirrorFace = false;
-  sctx.globalAlpha = lost ? .45 : 1;
-  drawAvatar(sctx, AVATARS[avatarKey], G, $("useFace").checked);
+  const fill = $("fill").checked, mirror = $("mirror").checked;
+  let people, faded = false;
+
+  if (!everTracked) {
+    const B = prepare(idlePose(t), frameBox(W, H, 3 / 4), { mirror: false, fill: true });
+    people = [{ B, key: avatarKey, slot: 0, opts: { mirror: false, fill: true } }];
+  } else {
+    let live = tracks.filter(tr => lastDetTs - tr.seen < 300);
+    if (!live.length) { live = tracks; faded = true; }
+    const box = frameBox(W, H, aspect);
+    people = live.map(tr => ({ B: prepare(shownPose(tr, now), box, { mirror, fill }), key: avatarFor(tr), slot: tr.slot, opts: { mirror, fill } }));
+    if (people.length && $("center").checked) { const T = groupTransform(people.map(p => p.B), W, H); people.forEach(p => applyT(p.B, T)); }
+  }
+  people.sort((a, b) => a.B.u - b.B.u);   // smaller (farther) people first
+  sctx.globalAlpha = faded ? .45 : 1;
+  people.forEach(p => {
+    const G = finish(p.B, p.opts);
+    G.t = t; G.ink = bg.ink; G.bgFill = bg.fill;
+    sctx.globalAlpha = faded ? .45 : 1;
+    drawAvatar(sctx, AVATARS[p.key], G, p.slot === 0 && $("useFace").checked);
+  });
+  sctx.globalAlpha = 1;
 
   if (!$("videobox").hidden) {
     fit(overlay); const w = overlay.width, h = overlay.height;
     octx.clearRect(0, 0, w, h);
-    if ($("onvideo").checked && tracked && !lost) {
-      octx.lineCap = "round"; octx.strokeStyle = C.marker; octx.lineWidth = Math.max(2, w / 220);
-      octx.beginPath();
-      SKEL.forEach(([a, b]) => { const p = pose[a], q = pose[b]; if ((p.visibility ?? 1) < .4 || (q.visibility ?? 1) < .4) return; octx.moveTo(p.x * w, p.y * h); octx.lineTo(q.x * w, q.y * h); });
-      octx.stroke();
-      octx.fillStyle = C.chalk;
-      pose.forEach((p, i) => { if (i > 10 && (p.visibility ?? 1) >= .4) { octx.beginPath(); octx.arc(p.x * w, p.y * h, octx.lineWidth * 1.1, 0, TAU); octx.fill(); } });
+    if ($("onvideo").checked && everTracked) {
+      octx.lineCap = "round"; octx.lineWidth = Math.max(2, w / 220);
+      tracks.filter(tr => lastDetTs - tr.seen < 300).forEach(tr => {
+        const col = PERSON_COLORS[tr.slot % PERSON_COLORS.length], L = tr.lm;
+        octx.strokeStyle = col; octx.beginPath();
+        SKEL.forEach(([a, b]) => { if (vis(L[a]) < .4 || vis(L[b]) < .4) return; octx.moveTo(L[a].x * w, L[a].y * h); octx.lineTo(L[b].x * w, L[b].y * h); });
+        octx.stroke();
+        octx.fillStyle = C.chalk;
+        L.forEach((p, i) => { if (i > 10 && vis(p) >= .4) { octx.beginPath(); octx.arc(p.x * w, p.y * h, octx.lineWidth * 1.1, 0, TAU); octx.fill(); } });
+        const n = L[NOSE]; if (vis(n) > .3) { octx.font = `600 ${Math.max(12, w / 40)}px system-ui,sans-serif`; octx.fillStyle = col; octx.textAlign = "center"; octx.fillText(String(tr.slot + 1), n.x * w, n.y * h - w / 25); }
+      });
     }
   }
 }
 
-/* ---------------- tracking ---------------- */
-async function loadModel(kind) {
-  if (loadingModel) return; loadingModel = true;
-  setStatus("wait", "Loading tracker");
-  try {
-    if (!vision) {
-      const m = await import(TV + "/vision_bundle.mjs");
-      PoseLandmarker = m.PoseLandmarker;
-      vision = await m.FilesetResolver.forVisionTasks(TV + "/wasm");
-    }
-    const opts = delegate => ({ baseOptions: { modelAssetPath: MODELS[kind], delegate }, runningMode: "VIDEO", numPoses: 1,
+/* ---------------- model loading ---------------- */
+let vision = null, PoseLandmarker = null, tfReady = null;
+async function ensureVision() {
+  if (vision) return;
+  const m = await import(TV + "/vision_bundle.mjs");
+  PoseLandmarker = m.PoseLandmarker;
+  vision = await m.FilesetResolver.forVisionTasks(TV + "/wasm");
+}
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.crossOrigin = "anonymous"; s.onload = res; s.onerror = () => rej(new Error("Could not load " + src)); document.head.append(s); });
+}
+function ensureTF() {
+  if (!tfReady) tfReady = (async () => {
+    await loadScript(TFJS); await loadScript(PDJS);
+    try { await window.tf.setBackend("webgl"); } catch (e) { /* falls back to default backend */ }
+    await window.tf.ready();
+  })().catch(e => { tfReady = null; throw e; });
+  return tfReady;
+}
+function cocoToMP(kps, W, H) {
+  const lm = []; for (let i = 0; i < 33; i++) lm.push({ x: .5, y: .5, z: 0, visibility: 0, none: true });
+  kps.forEach((k, i) => { if (i < 17) lm[COCO_TO_MP[i]] = { x: k.x / W, y: k.y / H, z: 0, visibility: k.score ?? 0 }; });
+  return lm;
+}
+async function createDetector(m, people) {
+  const n = Math.min(people, m.max);
+  if (m.kind === "mp") {
+    await ensureVision();
+    const opts = delegate => ({ baseOptions: { modelAssetPath: MP_FILES[m.file], delegate }, runningMode: "VIDEO", numPoses: n,
       minPoseDetectionConfidence: .5, minPosePresenceConfidence: .5, minTrackingConfidence: .5 });
-    let lm;
-    try { lm = await PoseLandmarker.createFromOptions(vision, opts("GPU")); gpu = true; }
-    catch (e) { lm = await PoseLandmarker.createFromOptions(vision, opts("CPU")); gpu = false; }
-    if (landmarker) landmarker.close();
-    landmarker = lm; resetFilters(); lastVT = -1;
-    setStatus("ok", video.src ? "Tracker ready" : "Tracker ready. Choose a video.");
+    let lm, gpu = true;
+    try { lm = await PoseLandmarker.createFromOptions(vision, opts("GPU")); }
+    catch (e) { gpu = false; lm = await PoseLandmarker.createFromOptions(vision, opts("CPU")); }
+    return { gpu, sync: true, close: () => lm.close(),
+      detect: (v, ts) => { const r = lm.detectForVideo(v, ts); return (r.landmarks || []).map(a => a.map(p => ({ x: p.x, y: p.y, z: p.z, visibility: p.visibility ?? 1 }))); } };
+  }
+  await ensureTF();
+  const pd = window.poseDetection;
+  let det;
+  if (m.id === "posenet") {
+    det = await pd.createDetector(pd.SupportedModels.PoseNet, { architecture: "MobileNetV1", outputStride: 16, inputResolution: { width: 513, height: 513 }, multiplier: .75 });
+  } else {
+    const T = pd.movenet.modelType;
+    const modelType = m.id === "movenet-lightning" ? T.SINGLEPOSE_LIGHTNING : m.id === "movenet-thunder" ? T.SINGLEPOSE_THUNDER : T.MULTIPOSE_LIGHTNING;
+    det = await pd.createDetector(pd.SupportedModels.MoveNet, { modelType, enableSmoothing: false, enableTracking: false });
+  }
+  const minScore = m.id === "posenet" ? .15 : .2;
+  return { gpu: window.tf.getBackend() === "webgl", sync: false, close: () => det.dispose(),
+    detect: async v => {
+      const poses = await det.estimatePoses(v, { maxPoses: n, flipHorizontal: false });
+      return poses.filter(p => (p.score ?? 1) >= minScore).slice(0, n).map(p => cocoToMP(p.keypoints, v.videoWidth, v.videoHeight));
+    } };
+}
+async function loadModel() {
+  const tokn = ++loadToken, m = MODELS.find(x => x.id === modelId), people = +$("people").value;
+  updateModelInfo(m);
+  setStatus("wait", `Loading ${m.name}`);
+  try {
+    const d = await createDetector(m, people);
+    if (tokn !== loadToken) { d.close(); return; }
+    if (detector) { try { detector.close(); } catch (e) {} }
+    detector = d; model = m; busy = false; resetTracks();
+    setStatus("ok", `${m.name} ready` + (video.src ? "" : ". Choose a video."));
     detect();
   } catch (e) {
     console.error(e);
-    setStatus("bad", "Tracker failed to load. Check your connection and reload.");
-  } finally { loadingModel = false; }
+    if (tokn === loadToken) setStatus("bad", `${m.name} failed to load. Check your connection or pick another model.`);
+  }
+}
+function updateModelInfo(m) {
+  const n = Math.min(+$("people").value, m.max);
+  $("modelinfo").textContent = m.max === 1 ? "This model tracks 1 person" : `Tracking up to ${n} ${n === 1 ? "person" : "people"}`;
 }
 
+/* ---------------- detection ---------------- */
 function detect() {
-  if (!landmarker || video.readyState < 2 || !video.videoWidth) return;
+  if (!detector || busy || video.readyState < 2 || !video.videoWidth) return;
   if (video.currentTime === lastVT) return;
   lastVT = video.currentTime;
   let ts = performance.now(); if (ts <= lastTs) ts = lastTs + 1; lastTs = ts;
-  const t0 = performance.now();
-  let res;
-  try { res = landmarker.detectForVideo(video, ts); } catch (e) { console.error(e); setStatus("bad", "Tracking stopped on this frame."); return; }
-  detMs += performance.now() - t0; detCount++;
-  if (res && res.landmarks && res.landmarks.length) {
-    pose = smoothPose(res.landmarks[0], ts); tracked = true; lost = false;
-    if (!recording) setStatus("ok", "Tracking" + (gpu ? " on GPU" : ""));
-  } else if (tracked) { lost = true; if (!recording) setStatus("wait", "No body found in this frame"); }
+  const t0 = performance.now(), d = detector;
+  const done = poses => {
+    if (d !== detector) return;
+    detMs += performance.now() - t0; detCount++; lastDetTs = ts;
+    updateTracks(poses, ts);
+    if (recording) return;
+    const n = poses.length;
+    if (n) setStatus("ok", `${model.name} · ${n} ${n === 1 ? "person" : "people"}` + (d.gpu ? " · GPU" : ""));
+    else if (everTracked) setStatus("wait", "No body found in this frame");
+  };
+  if (d.sync) {
+    try { done(d.detect(video, ts)); } catch (e) { console.error(e); setStatus("bad", "Tracking stopped on this frame."); }
+  } else {
+    busy = true;
+    d.detect(video, ts).then(done).catch(e => { console.error(e); setStatus("bad", "Tracking stopped on this frame."); }).finally(() => { busy = false; });
+  }
 }
-
-const hasRVFC = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
-if (hasRVFC) { const onFrame = () => { detect(); video.requestVideoFrameCallback(onFrame); }; video.requestVideoFrameCallback(onFrame); }
-
+if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+  const onFrame = () => { detect(); video.requestVideoFrameCallback(onFrame); };
+  video.requestVideoFrameCallback(onFrame);
+}
 function loop(now) {
-  if (!hasRVFC) detect();
+  detect();
   render(now);
   if (now - perfT > 1000) {
-    if (tracked || detCount) $("perf").textContent = detCount ? `${Math.round(detCount * 1000 / (now - perfT))} frames/s · ${(detMs / detCount).toFixed(0)} ms each` : "Paused";
+    if (everTracked || detCount) $("perf").textContent = detCount ? `${Math.round(detCount * 1000 / (now - perfT))} frames/s · ${(detMs / detCount).toFixed(0)} ms each` : "Paused";
     detCount = 0; detMs = 0; perfT = now;
   }
   requestAnimationFrame(loop);
 }
 
-/* ---------------- avatar picker ---------------- */
-function buildPicker() {
+/* ---------------- pickers ---------------- */
+function buildModelPicker() {
+  const box = $("models");
+  MODELS.forEach(m => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "model"; b.dataset.id = m.id; b.setAttribute("aria-pressed", m.id === modelId);
+    const name = document.createElement("b"); name.textContent = m.name;
+    if (m.badge) { const bd = document.createElement("span"); bd.className = "badge"; bd.textContent = m.badge; name.append(bd); }
+    const by = document.createElement("em"); by.textContent = m.by;
+    const blurb = document.createElement("span"); blurb.textContent = m.blurb;
+    const tags = document.createElement("div"); tags.className = "tags";
+    const t1 = document.createElement("span"); t1.textContent = m.points + " points";
+    const t2 = document.createElement("span"); t2.textContent = m.max === 1 ? "1 person" : `Up to ${m.max} people`; if (m.max > 1) t2.className = "multi";
+    tags.append(t1, t2);
+    b.append(name, by, blurb, tags); box.append(b);
+    b.addEventListener("click", () => {
+      if (modelId === m.id) return;
+      modelId = m.id;
+      box.querySelectorAll(".model").forEach(x => x.setAttribute("aria-pressed", x.dataset.id === m.id));
+      loadModel();
+    });
+  });
+}
+function buildAvatarPicker() {
   const box = $("avatars");
   Object.entries(AVATARS).forEach(([key, av]) => {
     const b = document.createElement("button");
@@ -648,10 +825,9 @@ function buildPicker() {
     const cv = document.createElement("canvas"); cv.width = 128; cv.height = 168;
     const label = document.createElement("span"); label.textContent = av.name;
     b.append(cv, label); box.append(b);
-    const ctx = cv.getContext("2d");
-    const G = buildG(idlePose(.35), 128, 168, 3 / 4, { centred: false, mirror: false, fill: true });
-    G.t = 0; G.ink = C.chalk; G.bgFill = C.stage;
-    drawAvatar(ctx, av, G, false);
+    const B = prepare(idlePose(.35), frameBox(128, 168, 3 / 4), { mirror: false, fill: true });
+    const G = finish(B, { mirror: false, fill: true }); G.t = 0; G.ink = C.chalk; G.bgFill = C.stage;
+    drawAvatar(cv.getContext("2d"), av, G, false);
     b.addEventListener("click", () => {
       avatarKey = key;
       box.querySelectorAll(".av").forEach(x => x.setAttribute("aria-pressed", x.dataset.key === key));
@@ -667,7 +843,7 @@ function loadVideo(f) {
   if (recording) stopRecording();
   if (videoURL) URL.revokeObjectURL(videoURL);
   videoURL = URL.createObjectURL(f);
-  tracked = false; lost = false; pose = null; resetFilters(); lastVT = -1;
+  resetTracks();
   video.src = videoURL;
   $("drop").hidden = true; $("videobox").hidden = false; $("change").hidden = false;
   $("play").disabled = false; $("record").disabled = false; $("save").hidden = true;
@@ -685,7 +861,7 @@ video.addEventListener("loadedmetadata", () => {
   $("vinfo").textContent = `${video.videoWidth}×${video.videoHeight}, ${video.duration.toFixed(1)} s`;
 });
 video.addEventListener("error", () => { if (video.src) setStatus("bad", "This browser cannot play that video. Try an MP4."); });
-video.addEventListener("seeked", () => { resetFilters(); lastVT = -1; if (!hasRVFC) detect(); });
+video.addEventListener("seeked", () => { tracks.forEach(t => { t.filters = null; t.prev = null; }); centre = null; lastVT = -1; });
 video.addEventListener("play", () => { $("play").textContent = "Pause"; });
 video.addEventListener("pause", () => { $("play").textContent = "Play"; });
 video.addEventListener("ended", () => { if (recording) stopRecording(); });
@@ -694,10 +870,10 @@ $("play").addEventListener("click", () => { if (video.paused) video.play().catch
 /* ---------------- face photo ---------------- */
 function loadFace(f) {
   if (!f || !f.type.startsWith("image/")) return;
-  const img = new Image(), url = URL.createObjectURL(f);
+  const img = new Image();
   img.onload = () => { faceImg = img; $("faceWrap").hidden = false; $("useFace").checked = true; $("faceinfo").textContent = "Face photo added"; };
   img.onerror = () => { $("faceinfo").textContent = "That photo could not be opened."; };
-  img.src = url;
+  img.src = URL.createObjectURL(f);
 }
 $("faceFile").addEventListener("change", e => { loadFace(e.target.files[0]); e.target.value = ""; });
 
@@ -710,20 +886,18 @@ async function startRecording() {
   const mime = pickMime();
   if (mime === null || !stage.captureStream) { setStatus("bad", "This browser cannot record video."); return; }
   const chunks = [];
-  const stream = stage.captureStream(30);
-  try { recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 6e6 } : {}); }
+  try { recorder = new MediaRecorder(stage.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 6e6 } : {}); }
   catch (e) { setStatus("bad", "This browser cannot record video."); return; }
   recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   recorder.onstop = () => {
     const type = recorder.mimeType || mime || "video/webm";
-    const blob = new Blob(chunks, { type });
     const a = $("save"); if (a.href) URL.revokeObjectURL(a.href);
-    a.href = URL.createObjectURL(blob);
-    a.download = "avatar-" + avatarKey + (type.includes("mp4") ? ".mp4" : ".webm");
+    a.href = URL.createObjectURL(new Blob(chunks, { type }));
+    a.download = "avatar-dance" + (type.includes("mp4") ? ".mp4" : ".webm");
     a.hidden = false;
     setStatus("ok", "Recording ready to save");
   };
-  recording = true; video.loop = false; video.pause(); video.currentTime = 0; resetFilters();
+  recording = true; video.loop = false; video.pause(); video.currentTime = 0;
   await new Promise(r => video.addEventListener("seeked", r, { once: true }));
   recorder.start(250);
   $("record").textContent = "Stop recording"; $("record").classList.add("rec");
@@ -740,13 +914,14 @@ function stopRecording() {
 $("record").addEventListener("click", () => { if (recording) stopRecording(); else startRecording(); });
 
 /* ---------------- settings ---------------- */
-$("detail").addEventListener("change", e => loadModel(e.target.value));
-$("smooth").addEventListener("change", resetFilters);
+$("people").addEventListener("change", loadModel);
+$("smooth").addEventListener("change", () => tracks.forEach(t => { t.filters = null; }));
 ["center", "mirror"].forEach(id => $(id).addEventListener("change", () => { centre = null; }));
 
-buildPicker();
+buildModelPicker();
+buildAvatarPicker();
 requestAnimationFrame(loop);
-loadModel($("detail").value);
+loadModel();
 </script>
 </body>
 </html>
